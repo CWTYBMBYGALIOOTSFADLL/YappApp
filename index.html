@@ -310,6 +310,7 @@
 (() => {
   let myName = null;
   let ws = null;
+  const SECRET_KEY = 'a9f3d2b7e8c14f5d9a7b3c6e0f1d2a4b'; // replace with your server secret key
 
   const nameOverlay = document.getElementById('name-overlay');
   const nameInput = document.getElementById('name-input');
@@ -347,129 +348,81 @@
 
   // Add message to chat UI
   function addMessage(sender, text) {
-  const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
+    const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
 
-  const row = document.createElement('div');
-  row.className = 'message-row';
-  if (sender === myName) row.classList.add('me');
+    const row = document.createElement('div');
+    row.className = 'message-row';
+    if (sender === myName) row.classList.add('me');
 
-  const senderDiv = document.createElement('div');
-  senderDiv.className = 'message-sender';
-  if (sender === myName) senderDiv.classList.add('me');
-  senderDiv.textContent = sender;
+    const senderDiv = document.createElement('div');
+    senderDiv.className = 'message-sender';
+    if (sender === myName) senderDiv.classList.add('me');
+    senderDiv.textContent = sender;
 
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  if (sender === myName) bubble.classList.add('me');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (sender === myName) bubble.classList.add('me');
 
-  // Detect file message format [file:URL]::type::name
-  const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
-  if (fileMatch) {
-    const fileUrl = fileMatch[1];
-    const fileType = fileMatch[2];
-    const fileName = fileMatch[3];
+    // Detect file message format [file:URL]::type::name
+    const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
+    if (fileMatch) {
+      const fileUrl = fileMatch[1];
+      const fileType = fileMatch[2];
+      const fileName = fileMatch[3];
 
-    if (fileType.startsWith('image/')) {
-      const img = document.createElement('img');
-      img.src = fileUrl;
-      img.alt = fileName;
-      img.style.maxWidth = '200px';
-      img.style.borderRadius = '8px';
-      bubble.appendChild(img);
-    } else {
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.textContent = `Download ${fileName}`;
-      link.target = '_blank';
-      bubble.appendChild(link);
-    }
-  } else {
-    // regex to detect tenor page URL
-    const tenorPageRegex = /https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i;
-    const tenorMatch = text.match(tenorPageRegex);
-
-    if (tenorMatch) {
-      const gifId = tenorMatch[1];
-      const embedUrl = `https://tenor.com/embed/${gifId}`;
-      const iframe = document.createElement('iframe');
-      iframe.src = embedUrl;
-      iframe.width = 250;
-      iframe.height = 200;
-      iframe.frameBorder = 0;
-      iframe.allowFullscreen = true;
-      bubble.appendChild(iframe);
-    } else {
-      // detect direct image URL
-      const imageUrlRegex = /(https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|svg))(\?\S*)?$/i;
-      if (imageUrlRegex.test(text.trim())) {
+      if (fileType.startsWith('image/')) {
         const img = document.createElement('img');
-        img.src = text.trim();
-        img.alt = 'Image';
+        img.src = fileUrl;
+        img.alt = fileName;
         img.style.maxWidth = '200px';
         img.style.borderRadius = '8px';
         bubble.appendChild(img);
       } else {
-        // Otherwise show normal text
-        bubble.textContent = text;
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.textContent = `Download ${fileName}`;
+        link.target = '_blank';
+        bubble.appendChild(link);
       }
-    }
-  }
+    } else {
+      // regex to detect tenor page URL
+      const tenorPageRegex = /https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i;
+      const tenorMatch = text.match(tenorPageRegex);
 
-  row.appendChild(senderDiv);
-  row.appendChild(bubble);
-  chat.appendChild(row);
-
-  if (isNearBottom) {
-    chat.scrollTop = chat.scrollHeight;
-  }
-}
-
-
-  // Connect to WebSocket server
-  function connectWebSocket() {
-    ws = new WebSocket('ws://1a7c9841359a.ngrok-free.app');
-
-    ws.onopen = () => {
-      // Send join event with username
-      ws.send(JSON.stringify({ type: 'join', username: myName }));
-    };
-
-ws.onmessage = (event) => {
-  try {
-    const msg = JSON.parse(event.data);
-
-    if (msg.type === 'members') {
-      updateMemberList(msg.list);
-    } else if (msg.type === 'message') {
-      if (msg.message) {
-        // Old format (with nested message)
-        const { sender, text } = msg.message;
-        addMessage(sender, text);
-      } else if (msg.sender && msg.text) {
-        // Server sends flat format with sender and text at top level
-        addMessage(msg.sender, msg.text);
-      } else if (msg.text) {
-        // Server sends text only but no sender, treat sender as "System" or unknown
-        addMessage('System', msg.text);
+      if (tenorMatch) {
+        const gifId = tenorMatch[1];
+        const embedUrl = `https://tenor.com/embed/${gifId}`;
+        const iframe = document.createElement('iframe');
+        iframe.src = embedUrl;
+        iframe.width = 250;
+        iframe.height = 200;
+        iframe.frameBorder = 0;
+        iframe.allowFullscreen = true;
+        bubble.appendChild(iframe);
       } else {
-        console.warn('Received malformed message:', msg);
+        // detect direct image URL
+        const imageUrlRegex = /(https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|svg))(\?\S*)?$/i;
+        if (imageUrlRegex.test(text.trim())) {
+          const img = document.createElement('img');
+          img.src = text.trim();
+          img.alt = 'Image';
+          img.style.maxWidth = '200px';
+          img.style.borderRadius = '8px';
+          bubble.appendChild(img);
+        } else {
+          // Otherwise show normal text
+          bubble.textContent = text;
+        }
       }
     }
-  } catch (e) {
-    console.error('Invalid message from server', e);
-  }
-};
 
-    ws.onclose = () => {
-      addMessage('System', 'Disconnected from server. Trying to reconnect...');
-      // Try to reconnect every 3 seconds
-      setTimeout(connectWebSocket, 3000);
-    };
+    row.appendChild(senderDiv);
+    row.appendChild(bubble);
+    chat.appendChild(row);
 
-    ws.onerror = (err) => {
-      console.error('WebSocket error', err);
-      ws.close();
-    };
+    if (isNearBottom) {
+      chat.scrollTop = chat.scrollHeight;
+    }
   }
 
   // Gray out input area for 5 seconds on spam
@@ -489,6 +442,72 @@ ws.onmessage = (event) => {
       messageInput.focus();
       consecutiveMessages = 0;
     }, GRAYOUT_DURATION_MS);
+  }
+
+  // Connect to WebSocket server with secret auth
+  function connectWebSocket() {
+    // Replace with your WSS server URL - use wss:// for secure connection if site uses HTTPS
+    const wsUrl = 'wss://1a7c9841359a.ngrok-free.app';
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      // Send secret key first to authenticate
+      ws.send(JSON.stringify({ type: 'auth', key: SECRET_KEY }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'auth_success') {
+          // Now send join after successful auth
+          ws.send(JSON.stringify({ type: 'join', username: myName }));
+          addMessage('System', 'Authentication succeeded. Welcome to the chat!');
+          chatForm.style.display = 'flex';
+          inputArea.classList.remove('grayout');
+          messageInput.disabled = false;
+          fileUploadInput.disabled = false;
+          chatForm.querySelector('button[type="submit"]').disabled = false;
+          messageInput.focus();
+        } else if (msg.type === 'auth_failed') {
+          addMessage('System', 'Authentication failed. Closing connection.');
+          ws.close();
+        } else if (msg.type === 'members') {
+          updateMemberList(msg.list);
+        } else if (msg.type === 'message') {
+          if (msg.message) {
+            const { sender, text } = msg.message;
+            addMessage(sender, text);
+          } else if (msg.sender && msg.text) {
+            addMessage(msg.sender, msg.text);
+          } else if (msg.text) {
+            addMessage('System', msg.text);
+          } else {
+            console.warn('Received malformed message:', msg);
+          }
+        }
+      } catch (e) {
+        console.error('Invalid message from server', e);
+      }
+    };
+
+    ws.onclose = () => {
+      addMessage('System', 'Disconnected from server. Reconnecting in 3 seconds...');
+      chatForm.style.display = 'none';
+      setTimeout(connectWebSocket, 3000);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error', err);
+      ws.close();
+    };
+
+    // Disable input until auth succeeds
+    chatForm.style.display = 'none';
+    inputArea.classList.add('grayout');
+    messageInput.disabled = true;
+    fileUploadInput.disabled = true;
+    chatForm.querySelector('button[type="submit"]').disabled = true;
   }
 
   // Send message handler
@@ -511,7 +530,6 @@ ws.onmessage = (event) => {
       return;
     }
 
-    // Send chat message
     ws.send(JSON.stringify({ type: 'message', text }));
     messageInput.value = '';
   };
@@ -529,7 +547,6 @@ ws.onmessage = (event) => {
     const file = fileUploadInput.files[0];
     if (!file) return;
 
-    // Simple size limit: 5MB
     if (file.size > 5 * 1024 * 1024) {
       alert('File too large (max 5MB)');
       fileUploadInput.value = '';
@@ -538,47 +555,40 @@ ws.onmessage = (event) => {
 
     const reader = new FileReader();
     reader.onload = () => {
-      // Send file as base64 string along with filename
       const base64Data = reader.result.split(',')[1];
       ws.send(JSON.stringify({
         type: 'file',
         name: file.name,
+        mime: file.type,
         data: base64Data,
-        fileType: file.type
       }));
     };
     reader.readAsDataURL(file);
+
     fileUploadInput.value = '';
   });
 
-  // Members panel toggle
-  membersTitle.addEventListener('click', () => {
-    membersPanel.classList.toggle('collapsed');
-  });
-
-  // Name submit handler
+  // Name submit button
   nameSubmit.addEventListener('click', () => {
     const val = nameInput.value.trim();
-    if (!val) {
-      alert('Please enter a name');
+    if (val.length < 1 || val.length > 16) {
+      alert('Name must be between 1 and 16 characters');
       return;
     }
     myName = val;
     nameOverlay.style.display = 'none';
-    appContainer.style.display = 'flex';
-    chatForm.style.display = 'flex';
     connectWebSocket();
-    messageInput.focus();
   });
 
-  nameInput.addEventListener('keydown', e => {
+  // Also allow Enter key to submit name
+  nameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       nameSubmit.click();
     }
   });
 
 })();
+
 </script>
 </body>
 </html>
