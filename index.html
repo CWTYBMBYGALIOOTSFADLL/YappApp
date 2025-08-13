@@ -363,67 +363,54 @@
     bubble.className = 'bubble';
     if (sender === myName) bubble.classList.add('me');
 
-    // Detect file message format [file:URL]::type::name
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-      const fileUrl = fileMatch[1];
-      const fileType = fileMatch[2];
-      const fileName = fileMatch[3];
+        const fileUrl = fileMatch[1]; 
+        const fileType = fileMatch[2];
+        const fileName = fileMatch[3];
 
-      if (fileType.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.src = fileUrl;
-        img.alt = fileName;
-        img.style.maxWidth = '200px';
-        img.style.borderRadius = '8px';
-        bubble.appendChild(img);
-      } else {
-        const link = document.createElement('a');
-        link.href = fileUrl;
-        link.textContent = `Download ${fileName}`;
-        link.target = '_blank';
-        bubble.appendChild(link);
-      }
-    } else {
-      // regex to detect tenor page URL
-      const tenorPageRegex = /https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i;
-      const tenorMatch = text.match(tenorPageRegex);
-
-      if (tenorMatch) {
-        const gifId = tenorMatch[1];
-        const embedUrl = `https://tenor.com/embed/${gifId}`;
+        if (fileType.startsWith('image/')) {
+            const img = document.createElement('img');
+            // Make sure the URL is absolute
+            img.src = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
+            img.alt = fileName;
+            img.style.maxWidth = '200px';
+            img.style.borderRadius = '8px';
+            bubble.appendChild(img);
+        } else {
+            const link = document.createElement('a');
+            link.href = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
+            link.textContent = `Download ${fileName}`;
+            link.target = '_blank';
+            bubble.appendChild(link);
+        }
+    } else if (/https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i.test(text)) {
+        const gifId = text.match(/https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i)[1];
         const iframe = document.createElement('iframe');
-        iframe.src = embedUrl;
+        iframe.src = `https://tenor.com/embed/${gifId}`;
         iframe.width = 250;
         iframe.height = 200;
         iframe.frameBorder = 0;
         iframe.allowFullscreen = true;
         bubble.appendChild(iframe);
-      } else {
-        // detect direct image URL
-        const imageUrlRegex = /(https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|svg))(\?\S*)?$/i;
-        if (imageUrlRegex.test(text.trim())) {
-          const img = document.createElement('img');
-          img.src = text.trim();
-          img.alt = 'Image';
-          img.style.maxWidth = '200px';
-          img.style.borderRadius = '8px';
-          bubble.appendChild(img);
-        } else {
-          // Otherwise show normal text
-          bubble.textContent = text;
-        }
-      }
+    } else if (/(https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|svg))(\?\S*)?$/i.test(text.trim())) {
+        const img = document.createElement('img');
+        img.src = text.trim();
+        img.alt = 'Image';
+        img.style.maxWidth = '200px';
+        img.style.borderRadius = '8px';
+        bubble.appendChild(img);
+    } else {
+        bubble.textContent = text;
     }
 
     row.appendChild(senderDiv);
     row.appendChild(bubble);
     chat.appendChild(row);
 
-    if (isNearBottom) {
-      chat.scrollTop = chat.scrollHeight;
-    }
-  }
+    if (isNearBottom) chat.scrollTop = chat.scrollHeight;
+}
+
 
   // Gray out input area for 5 seconds on spam
   function grayOutInput() {
