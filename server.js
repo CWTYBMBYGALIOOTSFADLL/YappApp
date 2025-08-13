@@ -85,31 +85,34 @@ wss.on('connection', ws => {
         return;
       }
 
-      if (data.type === 'file' && data.data && data.name && (data.fileType || data.mime)) {
-    const ext = path.extname(data.name) || '.dat';
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-    const filePath = path.join(UPLOAD_DIR, safeName);
+if (data.type === 'file' && data.data && data.name && data.mime) {
+  const ext = path.extname(data.name) || '.dat';
+  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+  const filePath = path.join(UPLOAD_DIR, safeName);
 
-    fs.writeFile(filePath, Buffer.from(data.data, 'base64'), err => {
-        if (err) {
-            console.error('Error saving file:', err);
-            ws.send(JSON.stringify({ type: 'error', text: 'File upload failed' }));
-            return;
-        }
+  fs.writeFile(filePath, Buffer.from(data.data, 'base64'), err => {
+    if (err) {
+      console.error('[File Error] Failed to save:', err);
+      ws.send(JSON.stringify({ type: 'error', text: 'File upload failed' }));
+      return;
+    }
 
-        const fileUrl = `/uploads/${safeName}`;
+    const fileUrl = `/uploads/${safeName}`;
+    console.log(`[File Saved] ${filePath}`);
 
-        broadcast({
-            type: 'message',
-            message: { 
-                sender: ws.username, 
-                text: `[file:${fileUrl}]::${data.fileType || data.mime}::${data.name}`
-            }
-        });
-
-        console.log(`[File Saved] ${filePath}`);
+    // Broadcast the file message only AFTER it's saved
+    broadcast({
+      type: 'message',
+      message: {
+        sender: ws.username,
+        text: `[file:${fileUrl}]::${data.mime}::${data.name}`
+      }
     });
+  });
 }
+
+
+
 
 
 
