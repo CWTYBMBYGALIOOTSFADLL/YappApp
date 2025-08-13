@@ -1,19 +1,15 @@
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const SECRET_KEY = "a9f3d2b7e8c14f5d9a7b3c6e0f1d2a4b";
+const IMGBB_KEY = "YOUR_IMGBB_API_KEY"; // replace with your key
 
 const app = express();
 const server = http.createServer(app);
-
 const wss = new WebSocket.Server({ server });
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
-app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.static(__dirname));
 
 const clients = new Map();
@@ -22,9 +18,7 @@ function broadcast(data) {
   const msg = JSON.stringify(data);
   console.log("[Broadcast] →", msg);
   for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(msg);
-    }
+    if (client.readyState === WebSocket.OPEN) client.send(msg);
   }
 }
 
@@ -34,18 +28,31 @@ function broadcastMembers() {
   broadcast({ type: 'members', list: memberList });
 }
 
+async function uploadToImgbb(base64, name) {
+  const form = new URLSearchParams();
+  form.append('key', IMGBB_KEY);
+  form.append('image', base64);
+  form.append('name', name);
+
+  const res = await fetch('https://api.imgbb.com/1/upload', {
+    method: 'POST',
+    body: form
+  });
+  const data = await res.json();
+  if (data.success) return data.data.url;
+  throw new Error('Upload failed');
+}
+
 wss.on('connection', ws => {
   console.log("[WS] New connection");
   ws.username = null;
   ws.isAuthorized = false;
 
-  ws.on('message', message => {
-    console.log("[WS] Received message:", message.toString());
+  ws.on('message', async message => {
     try {
       const data = JSON.parse(message);
 
       if (data.type === 'auth') {
-        console.log("[Auth Attempt] key:", data.key);
         if (data.key !== SECRET_KEY) {
           ws.send(JSON.stringify({ type: 'error', text: 'Invalid key' }));
           ws.close();
@@ -53,7 +60,6 @@ wss.on('connection', ws => {
         }
         ws.isAuthorized = true;
         ws.send(JSON.stringify({ type: 'auth_success' }));
-        console.log("[Auth Success]");
         return;
       }
 
@@ -65,57 +71,29 @@ wss.on('connection', ws => {
       if (data.type === 'join' && typeof data.username === 'string') {
         ws.username = data.username.trim().substring(0, 20);
         clients.set(ws, ws.username);
-        console.log(`[Join] ${ws.username}`);
         broadcastMembers();
-        broadcast({
-          type: 'message',
-          message: { sender: 'System', text: `${ws.username} joined the chat` }
-        });
+        broadcast({ type: 'message', message: { sender: 'System', text: `${ws.username} joined the chat` } });
         return;
       }
 
       if (!ws.username) return;
 
       if (data.type === 'message' && typeof data.text === 'string') {
-        console.log(`[Chat] ${ws.username}: ${data.text}`);
-        broadcast({
-          type: 'message',
-          message: { sender: ws.username, text: data.text }
-        });
+        broadcast({ type: 'message', message: { sender: ws.username, text: data.text } });
         return;
       }
 
-if (data.type === 'file' && data.data && data.name && data.mime) {
-  const ext = path.extname(data.name) || '.dat';
-  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-  const filePath = path.join(UPLOAD_DIR, safeName);
-
-  fs.writeFile(filePath, Buffer.from(data.data, 'base64'), err => {
-    if (err) {
-      console.error('[File Error] Failed to save:', err);
-      ws.send(JSON.stringify({ type: 'error', text: 'File upload failed' }));
-      return;
-    }
-
-    const fileUrl = `/uploads/${safeName}`;
-    console.log(`[File Saved] ${filePath}`);
-
-    // Broadcast the file message only AFTER it's saved
-    broadcast({
-      type: 'message',
-      message: {
-        sender: ws.username,
-        text: `[file:${fileUrl}]::${data.mime}::${data.name}`
+      if (data.type === 'file' && data.data && data.name && data.mime) {
+        try {
+          const url = await uploadToImgbb(data.data, data.name);
+          broadcast({
+            type: 'message',
+            message: { sender: ws.username, text: `[file:${url}]::${data.mime}::${data.name}` }
+          });
+        } catch (err) {
+          ws.send(JSON.stringify({ type: 'error', text: 'File upload failed' }));
+        }
       }
-    });
-  });
-}
-
-
-
-
-
-
 
     } catch (err) {
       console.error('Error handling message:', err);
@@ -124,20 +102,12 @@ if (data.type === 'file' && data.data && data.name && data.mime) {
 
   ws.on('close', () => {
     if (ws.username) {
-      console.log(`[Disconnect] ${ws.username}`);
       clients.delete(ws);
       broadcastMembers();
-      broadcast({
-        type: 'message',
-        message: { sender: 'System', text: `${ws.username} left the chat` }
-      });
-    } else {
-      console.log("[Disconnect] Unauthenticated user");
+      broadcast({ type: 'message', message: { sender: 'System', text: `${ws.username} left the chat` } });
     }
   });
 });
 
 const PORT = process.env.PORT || 4001;
-server.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));

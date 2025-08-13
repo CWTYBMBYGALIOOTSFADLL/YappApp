@@ -346,8 +346,6 @@
     });
   }
 
-const SERVER_URL = 'https://4cbc7d1c53af.ngrok-free.app';
-
 function addMessage(sender, text) {
     const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
 
@@ -366,8 +364,7 @@ function addMessage(sender, text) {
 
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-        const filePath = fileMatch[1]; // /uploads/filename.png
-        const fileUrl = `${SERVER_URL}${filePath}`;
+        const fileUrl = fileMatch[1];
         const fileType = fileMatch[2].toLowerCase();
         const fileName = fileMatch[3];
 
@@ -385,22 +382,6 @@ function addMessage(sender, text) {
             link.target = '_blank';
             bubble.appendChild(link);
         }
-    } else if (/https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i.test(text)) {
-        const gifId = text.match(/https?:\/\/tenor\.com\/view\/[\w-]+-(\d+)/i)[1];
-        const iframe = document.createElement('iframe');
-        iframe.src = `https://tenor.com/embed/${gifId}`;
-        iframe.width = 250;
-        iframe.height = 200;
-        iframe.frameBorder = 0;
-        iframe.allowFullscreen = true;
-        bubble.appendChild(iframe);
-    } else if (/(https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|svg))(\?\S*)?$/i.test(text.trim())) {
-        const img = document.createElement('img');
-        img.src = text.trim();
-        img.alt = 'Image';
-        img.style.maxWidth = '300px';
-        img.style.borderRadius = '8px';
-        bubble.appendChild(img);
     } else {
         bubble.textContent = text;
     }
@@ -411,6 +392,7 @@ function addMessage(sender, text) {
 
     if (isNearBottom) chat.scrollTop = chat.scrollHeight;
 }
+
 
 
 
