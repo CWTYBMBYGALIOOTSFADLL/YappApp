@@ -310,8 +310,7 @@
 (() => {
   let myName = null;
   let ws = null;
-  const SECRET_KEY = 'a9f3d2b7e8c14f5d9a7b3c6e0f1d2a4b';
-  const IMGBB_KEY = '54f9963d526d01ed942d9a92b00bf05f';
+  const SECRET_KEY = '54f9963d526d01ed942d9a92b00bf05f';
 
   const nameOverlay = document.getElementById('name-overlay');
   const nameInput = document.getElementById('name-input');
@@ -323,6 +322,9 @@
   const membersList = document.getElementById('members-list');
   const messageInput = document.getElementById('message-input');
   const inputArea = document.querySelector('.input-area');
+  const membersPanel = document.getElementById('members-panel');
+  const membersTitle = document.getElementById('members-title');
+
   const fileUploadInput = document.getElementById('file-upload');
 
   let consecutiveMessages = 0;
@@ -360,26 +362,26 @@
 
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-      const fileUrl = fileMatch[1];
-      const fileType = fileMatch[2].toLowerCase();
-      const fileName = fileMatch[3];
+        const fileUrl = fileMatch[1];
+        const fileType = fileMatch[2].toLowerCase();
+        const fileName = fileMatch[3];
 
-      if (fileType.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.src = fileUrl;
-        img.alt = fileName;
-        img.style.maxWidth = '300px';
-        img.style.borderRadius = '8px';
-        bubble.appendChild(img);
-      } else {
-        const link = document.createElement('a');
-        link.href = fileUrl;
-        link.textContent = `Download ${fileName}`;
-        link.target = '_blank';
-        bubble.appendChild(link);
-      }
+        if (fileType.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = fileUrl;
+            img.alt = fileName;
+            img.style.maxWidth = '300px';
+            img.style.borderRadius = '8px';
+            bubble.appendChild(img);
+        } else {
+            const link = document.createElement('a');
+            link.href = fileUrl;
+            link.textContent = `Download ${fileName}`;
+            link.target = '_blank';
+            bubble.appendChild(link);
+        }
     } else {
-      bubble.textContent = text;
+        bubble.textContent = text;
     }
 
     row.appendChild(senderDiv);
@@ -394,6 +396,7 @@
     messageInput.disabled = true;
     fileUploadInput.disabled = true;
     chatForm.querySelector('button[type="submit"]').disabled = true;
+
     addMessage('System', 'You are sending messages too fast. Please wait 5 seconds.');
 
     setTimeout(() => {
@@ -417,7 +420,6 @@
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-
         if (msg.type === 'auth_success') {
           ws.send(JSON.stringify({ type: 'join', username: myName }));
           addMessage('System', 'Authentication succeeded. Welcome to the chat!');
@@ -427,11 +429,21 @@
           fileUploadInput.disabled = false;
           chatForm.querySelector('button[type="submit"]').disabled = false;
           messageInput.focus();
+        } else if (msg.type === 'auth_failed') {
+          addMessage('System', 'Authentication failed. Closing connection.');
+          ws.close();
         } else if (msg.type === 'members') {
           updateMemberList(msg.list);
         } else if (msg.type === 'message') {
           if (msg.message) {
-            addMessage(msg.message.sender, msg.message.text);
+            const { sender, text } = msg.message;
+            addMessage(sender, text);
+          } else if (msg.sender && msg.text) {
+            addMessage(msg.sender, msg.text);
+          } else if (msg.text) {
+            addMessage('System', msg.text);
+          } else {
+            console.warn('Received malformed message:', msg);
           }
         }
       } catch (e) {
@@ -465,7 +477,9 @@
     if (text === '') return;
 
     const now = Date.now();
-    if (now - lastMessageTimestamp > SPAM_INTERVAL_MS) consecutiveMessages = 0;
+    if (now - lastMessageTimestamp > SPAM_INTERVAL_MS) {
+      consecutiveMessages = 0;
+    }
     lastMessageTimestamp = now;
     consecutiveMessages++;
     if (consecutiveMessages > SPAM_LIMIT) {
@@ -475,11 +489,12 @@
 
     ws.send(JSON.stringify({ type: 'message', text }));
     messageInput.value = '';
-  }
+  };
 
   chatForm.addEventListener('submit', sendMessage);
 
-  fileUploadInput.addEventListener('change', () => {
+  // Upload to ImgBB and send link
+  fileUploadInput.addEventListener('change', async () => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       alert('WebSocket not connected.');
       fileUploadInput.value = '';
@@ -497,27 +512,28 @@
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const form = new FormData();
-        form.append('image', reader.result.split(',')[1]);
-
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {
+        const base64Data = reader.result.split(',')[1];
+        // Upload to ImgBB
+        const formData = new FormData();
+        formData.append('image', base64Data);
+        const imgbbKey = '54f9963d526d01ed942d9a92b00bf05f'; // replace with your ImgBB key
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
           method: 'POST',
-          body: form
+          body: formData
         });
-
         const json = await res.json();
-        if (!json.success) throw new Error('Upload failed');
-
-        const imageUrl = json.data.url;
-        ws.send(JSON.stringify({
-          type: 'file',
-          name: file.name,
-          mime: file.type,
-          data: imageUrl
-        }));
+        if (json.success) {
+          const imageUrl = json.data.url;
+          ws.send(JSON.stringify({
+            type: 'message',
+            text: `[file:${imageUrl}]::${file.type}::${file.name}`
+          }));
+        } else {
+          alert('Image upload failed');
+        }
       } catch (err) {
-        console.error('Image upload failed', err);
-        addMessage('System', 'Image upload failed.');
+        console.error(err);
+        alert('Error uploading image');
       }
     };
     reader.readAsDataURL(file);
@@ -539,6 +555,7 @@
     if (e.key === 'Enter') nameSubmit.click();
   });
 })();
+
 
 
 </script>
