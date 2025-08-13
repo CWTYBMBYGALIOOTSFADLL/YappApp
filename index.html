@@ -365,7 +365,9 @@ function addMessage(sender, text) {
 
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-        const fileUrl = `https://4cbc7d1c53af.ngrok-free.app/uploads/${safeName}`;
+        const fileUrl = fileMatch[1].startsWith('http')
+    ? fileMatch[1]
+    : `https://4cbc7d1c53af.ngrok-free.app${fileMatch[1]}`; // your server URL here
         const fileType = fileMatch[2].toLowerCase();
         const fileName = fileMatch[3];
 
