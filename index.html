@@ -310,7 +310,8 @@
 (() => {
   let myName = null;
   let ws = null;
-  const SECRET_KEY = 'a9f3d2b7e8c14f5d9a7b3c6e0f1d2a4b'; // replace with your server secret key
+  const SECRET_KEY = 'a9f3d2b7e8c14f5d9a7b3c6e0f1d2a4b';
+  const IMGBB_KEY = '54f9963d526d01ed942d9a92b00bf05f';
 
   const nameOverlay = document.getElementById('name-overlay');
   const nameInput = document.getElementById('name-input');
@@ -322,19 +323,14 @@
   const membersList = document.getElementById('members-list');
   const messageInput = document.getElementById('message-input');
   const inputArea = document.querySelector('.input-area');
-  const membersPanel = document.getElementById('members-panel');
-  const membersTitle = document.getElementById('members-title');
-
   const fileUploadInput = document.getElementById('file-upload');
 
-  // Spam protection variables
   let consecutiveMessages = 0;
   let lastMessageTimestamp = 0;
   const SPAM_LIMIT = 5;
-  const SPAM_INTERVAL_MS = 3000; // reset count if > 3s between messages
+  const SPAM_INTERVAL_MS = 3000;
   const GRAYOUT_DURATION_MS = 5000;
 
-  // Update member list UI from server list
   function updateMemberList(list) {
     membersList.innerHTML = '';
     list.forEach(name => {
@@ -346,7 +342,7 @@
     });
   }
 
-function addMessage(sender, text) {
+  function addMessage(sender, text) {
     const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
 
     const row = document.createElement('div');
@@ -364,26 +360,26 @@ function addMessage(sender, text) {
 
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-        const fileUrl = fileMatch[1];
-        const fileType = fileMatch[2].toLowerCase();
-        const fileName = fileMatch[3];
+      const fileUrl = fileMatch[1];
+      const fileType = fileMatch[2].toLowerCase();
+      const fileName = fileMatch[3];
 
-        if (fileType.startsWith('image/')) {
-            const img = document.createElement('img');
-            img.src = fileUrl;
-            img.alt = fileName;
-            img.style.maxWidth = '300px';
-            img.style.borderRadius = '8px';
-            bubble.appendChild(img);
-        } else {
-            const link = document.createElement('a');
-            link.href = fileUrl;
-            link.textContent = `Download ${fileName}`;
-            link.target = '_blank';
-            bubble.appendChild(link);
-        }
+      if (fileType.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = fileUrl;
+        img.alt = fileName;
+        img.style.maxWidth = '300px';
+        img.style.borderRadius = '8px';
+        bubble.appendChild(img);
+      } else {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.textContent = `Download ${fileName}`;
+        link.target = '_blank';
+        bubble.appendChild(link);
+      }
     } else {
-        bubble.textContent = text;
+      bubble.textContent = text;
     }
 
     row.appendChild(senderDiv);
@@ -391,19 +387,13 @@ function addMessage(sender, text) {
     chat.appendChild(row);
 
     if (isNearBottom) chat.scrollTop = chat.scrollHeight;
-}
+  }
 
-
-
-
-
-  // Gray out input area for 5 seconds on spam
   function grayOutInput() {
     inputArea.classList.add('grayout');
     messageInput.disabled = true;
     fileUploadInput.disabled = true;
     chatForm.querySelector('button[type="submit"]').disabled = true;
-
     addMessage('System', 'You are sending messages too fast. Please wait 5 seconds.');
 
     setTimeout(() => {
@@ -416,14 +406,11 @@ function addMessage(sender, text) {
     }, GRAYOUT_DURATION_MS);
   }
 
-  // Connect to WebSocket server with secret auth
   function connectWebSocket() {
-    // Replace with your WSS server URL - use wss:// for secure connection if site uses HTTPS
     const wsUrl = 'wss://4cbc7d1c53af.ngrok-free.app';
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      // Send secret key first to authenticate
       ws.send(JSON.stringify({ type: 'auth', key: SECRET_KEY }));
     };
 
@@ -432,7 +419,6 @@ function addMessage(sender, text) {
         const msg = JSON.parse(event.data);
 
         if (msg.type === 'auth_success') {
-          // Now send join after successful auth
           ws.send(JSON.stringify({ type: 'join', username: myName }));
           addMessage('System', 'Authentication succeeded. Welcome to the chat!');
           chatForm.style.display = 'flex';
@@ -441,21 +427,11 @@ function addMessage(sender, text) {
           fileUploadInput.disabled = false;
           chatForm.querySelector('button[type="submit"]').disabled = false;
           messageInput.focus();
-        } else if (msg.type === 'auth_failed') {
-          addMessage('System', 'Authentication failed. Closing connection.');
-          ws.close();
         } else if (msg.type === 'members') {
           updateMemberList(msg.list);
         } else if (msg.type === 'message') {
           if (msg.message) {
-            const { sender, text } = msg.message;
-            addMessage(sender, text);
-          } else if (msg.sender && msg.text) {
-            addMessage(msg.sender, msg.text);
-          } else if (msg.text) {
-            addMessage('System', msg.text);
-          } else {
-            console.warn('Received malformed message:', msg);
+            addMessage(msg.message.sender, msg.message.text);
           }
         }
       } catch (e) {
@@ -474,7 +450,6 @@ function addMessage(sender, text) {
       ws.close();
     };
 
-    // Disable input until auth succeeds
     chatForm.style.display = 'none';
     inputArea.classList.add('grayout');
     messageInput.disabled = true;
@@ -482,19 +457,15 @@ function addMessage(sender, text) {
     chatForm.querySelector('button[type="submit"]').disabled = true;
   }
 
-  // Send message handler
   function sendMessage(e) {
     e.preventDefault();
-
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
     const text = messageInput.value.trim();
     if (text === '') return;
 
     const now = Date.now();
-    if (now - lastMessageTimestamp > SPAM_INTERVAL_MS) {
-      consecutiveMessages = 0;
-    }
+    if (now - lastMessageTimestamp > SPAM_INTERVAL_MS) consecutiveMessages = 0;
     lastMessageTimestamp = now;
     consecutiveMessages++;
     if (consecutiveMessages > SPAM_LIMIT) {
@@ -504,11 +475,10 @@ function addMessage(sender, text) {
 
     ws.send(JSON.stringify({ type: 'message', text }));
     messageInput.value = '';
-  };
+  }
 
   chatForm.addEventListener('submit', sendMessage);
 
-  // Handle file uploads
   fileUploadInput.addEventListener('change', () => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       alert('WebSocket not connected.');
@@ -518,7 +488,6 @@ function addMessage(sender, text) {
 
     const file = fileUploadInput.files[0];
     if (!file) return;
-
     if (file.size > 5 * 1024 * 1024) {
       alert('File too large (max 5MB)');
       fileUploadInput.value = '';
@@ -526,21 +495,35 @@ function addMessage(sender, text) {
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
-      const base64Data = reader.result.split(',')[1];
-      ws.send(JSON.stringify({
-        type: 'file',
-        name: file.name,
-        mime: file.type,
-        data: base64Data,
-      }));
+    reader.onload = async () => {
+      try {
+        const form = new FormData();
+        form.append('image', reader.result.split(',')[1]);
+
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {
+          method: 'POST',
+          body: form
+        });
+
+        const json = await res.json();
+        if (!json.success) throw new Error('Upload failed');
+
+        const imageUrl = json.data.url;
+        ws.send(JSON.stringify({
+          type: 'file',
+          name: file.name,
+          mime: file.type,
+          data: imageUrl
+        }));
+      } catch (err) {
+        console.error('Image upload failed', err);
+        addMessage('System', 'Image upload failed.');
+      }
     };
     reader.readAsDataURL(file);
-
     fileUploadInput.value = '';
   });
 
-  // Name submit button
   nameSubmit.addEventListener('click', () => {
     const val = nameInput.value.trim();
     if (val.length < 1 || val.length > 16) {
@@ -552,14 +535,11 @@ function addMessage(sender, text) {
     connectWebSocket();
   });
 
-  // Also allow Enter key to submit name
   nameInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      nameSubmit.click();
-    }
+    if (e.key === 'Enter') nameSubmit.click();
   });
-
 })();
+
 
 </script>
 </body>
