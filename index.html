@@ -346,7 +346,8 @@
     });
   }
 
-  // Add message to chat UI
+const SERVER_URL = 'https://4cbc7d1c53af.ngrok-free.app';
+
 function addMessage(sender, text) {
     const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
 
@@ -365,9 +366,8 @@ function addMessage(sender, text) {
 
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-        const fileUrl = fileMatch[1].startsWith('http')
-    ? fileMatch[1]
-    : `https://4cbc7d1c53af.ngrok-free.app${fileMatch[1]}`; // your server URL here
+        const filePath = fileMatch[1]; // /uploads/filename.png
+        const fileUrl = `${SERVER_URL}${filePath}`;
         const fileType = fileMatch[2].toLowerCase();
         const fileName = fileMatch[3];
 
@@ -411,6 +411,7 @@ function addMessage(sender, text) {
 
     if (isNearBottom) chat.scrollTop = chat.scrollHeight;
 }
+
 
 
 
