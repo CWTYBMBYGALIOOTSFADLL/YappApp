@@ -382,6 +382,20 @@
       bubble.textContent = text;
     }
 
+    // inside your addMessage() function, instead of just bubble.textContent = text
+    const imageUrlRegex = /(https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|svg))(\?\S*)?$/i;
+
+    if (imageUrlRegex.test(text.trim())) {
+      const img = document.createElement('img');
+      img.src = text.trim();
+      img.alt = 'Image';
+      img.style.maxWidth = '300px';
+      img.style.borderRadius = '8px';
+      bubble.appendChild(img);
+    } else {
+      bubble.textContent = text;
+    }
+
     row.appendChild(senderDiv);
     row.appendChild(bubble);
     chat.appendChild(row);
