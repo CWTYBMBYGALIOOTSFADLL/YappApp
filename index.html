@@ -347,7 +347,7 @@
   }
 
   // Add message to chat UI
-  function addMessage(sender, text) {
+function addMessage(sender, text) {
     const isNearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
 
     const row = document.createElement('div');
@@ -365,21 +365,20 @@
 
     const fileMatch = text.match(/^\[file:(.+)\]::(.+)::(.+)$/);
     if (fileMatch) {
-        const fileUrl = fileMatch[1]; 
-        const fileType = fileMatch[2];
+        const fileUrl = fileMatch[1].startsWith('http') ? fileMatch[1] : `${window.location.origin}${fileMatch[1]}`;
+        const fileType = fileMatch[2].toLowerCase();
         const fileName = fileMatch[3];
 
         if (fileType.startsWith('image/')) {
             const img = document.createElement('img');
-            // Make sure the URL is absolute
-            img.src = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
+            img.src = fileUrl;
             img.alt = fileName;
-            img.style.maxWidth = '200px';
+            img.style.maxWidth = '300px';
             img.style.borderRadius = '8px';
             bubble.appendChild(img);
         } else {
             const link = document.createElement('a');
-            link.href = fileUrl.startsWith('http') ? fileUrl : `${window.location.origin}${fileUrl}`;
+            link.href = fileUrl;
             link.textContent = `Download ${fileName}`;
             link.target = '_blank';
             bubble.appendChild(link);
@@ -397,7 +396,7 @@
         const img = document.createElement('img');
         img.src = text.trim();
         img.alt = 'Image';
-        img.style.maxWidth = '200px';
+        img.style.maxWidth = '300px';
         img.style.borderRadius = '8px';
         bubble.appendChild(img);
     } else {
@@ -410,6 +409,7 @@
 
     if (isNearBottom) chat.scrollTop = chat.scrollHeight;
 }
+
 
 
   // Gray out input area for 5 seconds on spam
