@@ -7,6 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&family=Fira+Code:wght@400;500&family=Courier+Prime&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+  
   <style>
     :root {
       --dark-bg: radial-gradient(circle at 0% 0%, #22242e 0.01%, #18181B 20%);
@@ -21,48 +26,26 @@
       --app-font: 'Roboto Mono', monospace; 
     }
 
-    /* Anti-Spam Disabled State */
-    .message-form input:disabled,
-    .message-form button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-
-    /* Button Mini Spinner */
-    .btn-spinner {
-      width: 1.5em;
-      height: 1.5em;
-      border-radius: 50%;
-      border: 1.5px solid var(--border);
-      box-shadow: 
-        -3px -3px 3px var(--golden), 
-        0px -3px 3px 0px var(--text-color), 
-        3px -3px 3px var(--grayout-bg), 
-        3px 0 3px var(--border), 
-        3px 3px 3px 0px var(--button-bg), 
-        0 3px 3px 0px var(--darker-bg), 
-        -3px 3px 3px 0px var(--golden); 
-      animation: rot55 0.7s linear infinite;
-      display: inline-block;
-    }
+    .message-form input:disabled, .message-form button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+    .loader-wrapper { display: flex; justify-content: center; align-items: center; height: 100%; width: 100%; position: relative; }
+    .spinner { width: 3em; height: 3em; cursor: not-allowed; border-radius: 50%; border: 2px solid var(--border); box-shadow: -10px -10px 10px var(--golden), 0px -10px 10px 0px var(--text-color), 10px -10px 10px var(--grayout-bg), 10px 0 10px var(--border), 10px 10px 10px 0px var(--button-bg), 0 10px 10px 0px var(--darker-bg), -10px 10px 10px 0px var(--golden); animation: rot55 0.7s linear infinite; }
+    .btn-spinner { width: 1.5em; height: 1.5em; border-radius: 50%; border: 1.5px solid var(--border); box-shadow: -3px -3px 3px var(--golden), 0px -3px 3px 0px var(--text-color), 3px -3px 3px var(--grayout-bg), 3px 0 3px var(--border), 3px 3px 3px 0px var(--button-bg), 0 3px 3px 0px var(--darker-bg), -3px 3px 3px 0px var(--golden); animation: rot55 0.7s linear infinite; display: inline-block; }
+    @keyframes rot55 { to { transform: rotate(360deg); } }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--app-font); font-weight: 300; }
     body { background: var(--dark-bg); color: var(--text-color); height: 100vh; display: flex; justify-content: center; align-items: center; }
     .screen { display: none; width: 100%; height: 100%; }
     .screen.active { display: flex; }
 
-    /* Login Screen */
     #login-screen { justify-content: center; align-items: center; }
     .login-box { background-color: var(--darker-bg); padding: 40px; border-radius: var(--radius-sm); box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center; width: 100%; max-width: 400px; border: 1.5px solid var(--border); }
     .login-box h1 { color: var(--golden); font-size: 2.5rem; margin-bottom: 10px; font-weight: 500; }
-    .login-box p { color: var(--grayout-bg); font-weight: 400; }
-    .login-box input { width: 100%; padding: 14px 16px; margin: 12px 0; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; outline: none; background: var(--dark-bg); color: var(--text-color); transition: border-color 0.2s; }
+    .login-box p { color: var(--grayout-bg); font-weight: 400; margin-bottom: 8px; }
+    .login-box input { width: 100%; padding: 14px 16px; margin: 8px 0; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; outline: none; background: var(--dark-bg); color: var(--text-color); transition: border-color 0.2s; }
     .login-box input:focus { border-color: var(--golden); }
     .login-box button { width: 100%; padding: 14px; margin-top: 12px; background-color: var(--golden); color: var(--darker-bg); border: none; border-radius: var(--radius-sm); font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
     .login-box button:hover { opacity: 0.9; }
 
-    /* Chat Interface */
     #chat-screen { display: none; max-width: 1200px; height: 90vh; margin: auto; background-color: var(--darker-bg); border-radius: var(--radius-sm); box-shadow: 0 12px 40px rgba(0,0,0,0.5); overflow: hidden; border: 1.5px solid var(--border); }
     #chat-screen.active { display: flex; }
 
@@ -78,32 +61,57 @@
     .user-list { flex: 1; overflow-y: auto; scrollbar-width: none; }
 
     .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--dark-bg); position: relative; }
-    .chat-header { padding: 20px 24px; border-bottom: 1.5px solid var(--border); background-color: var(--darker-bg); }
+    .chat-header { padding: 20px 24px; border-bottom: 1.5px solid var(--border); background-color: var(--darker-bg); display: flex; justify-content: space-between; align-items: center; }
+    
+    #mute-btn { cursor: pointer; font-size: 1.2rem; transition: 0.2s; color: var(--golden); }
+    #mute-btn:hover { transform: scale(1.1); }
+    #mute-btn.muted { color: var(--grayout-bg); opacity: 0.5; }
+
     .message-container { flex: 1; display: flex; flex-direction: column; padding: 24px; gap: 20px; overflow-y: auto; background-color: var(--dark-bg); scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
     
-    .message { display: flex; flex-direction: column; max-width: 75%; position: relative; }
+    .message { display: flex; flex-direction: column; max-width: 75%; position: relative; margin-bottom: 6px; }
     .message.yours { align-self: flex-end; align-items: flex-end; }
-    .message .sender { font-size: 0.8rem; color: var(--grayout-bg); margin-bottom: 6px; font-weight: 400; margin-left: 4px; }
-    .message.yours .sender { margin-left: 0; margin-right: 4px; }
     
-    /* Bubble & Delete Button */
-    .message-bubble-wrapper { display: flex; align-items: center; gap: 8px; }
+    .sender-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; margin-left: 4px; }
+    .message.yours .sender-row { flex-direction: row-reverse; margin-left: 0; margin-right: 4px; }
+    .sender-name { font-size: 0.8rem; color: var(--grayout-bg); font-weight: 400; }
+    .timestamp { font-size: 0.65rem; color: #666; }
+    
+    .message-bubble-wrapper { display: flex; align-items: center; gap: 8px; position: relative; }
     .message.yours .message-bubble-wrapper { flex-direction: row-reverse; }
-    .delete-btn { opacity: 0; cursor: pointer; font-size: 1rem; transition: 0.2s; background: none; border: none; padding: 5px; }
-    .message:hover .delete-btn { opacity: 1; }
-    .delete-btn:hover { transform: scale(1.2); }
-
-    .message .bubble { padding: 14px 18px; background-color: var(--darker-bg); border: 1.5px solid var(--border); border-radius: var(--radius-sm); color: var(--text-color); line-height: 1.5; font-size: 0.95rem; word-wrap: break-word; }
+    
+    .message .bubble { padding: 14px 18px; background-color: var(--darker-bg); border: 1.5px solid var(--border); border-radius: var(--radius-sm); color: var(--text-color); line-height: 1.5; font-size: 0.95rem; word-wrap: break-word; display: flex; flex-direction: column; }
     .message.yours .bubble { background-color: var(--golden); color: var(--darker-bg); border: none; font-weight: 500; }
+    .bubble.mentioned { border: 2px solid var(--golden); box-shadow: 0 0 15px rgba(163, 179, 255, 0.4); }
+
     .message img { max-width: 250px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); }
 
-    .message-form { padding: 20px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 12px; background-color: var(--darker-bg); border-radius: 10px 10px 0px 0px; align-items: center; z-index: 10; }
+    .system-message { text-align: center; color: var(--grayout-bg); font-size: 0.85rem; margin: 10px 0; font-style: italic; align-self: center; width: 100%; }
+    .system-message i { margin-right: 6px; }
+
+    .msg-actions { display: flex; gap: 4px; opacity: 0; transition: 0.2s; }
+    .message-bubble-wrapper:hover .msg-actions { opacity: 1; }
+    .msg-action-btn { cursor: pointer; font-size: 0.9rem; color: var(--grayout-bg); transition: 0.2s; background: var(--darker-bg); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; }
+    .msg-action-btn:hover { background: var(--button-bg); border-color: var(--golden); color: var(--golden); transform: scale(1.1); }
+    .message.yours .msg-actions { flex-direction: row-reverse; }
+
+    .quoted-reply { font-size: 0.75rem; background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--grayout-bg); display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }
+    .message.yours .quoted-reply { border-color: var(--darker-bg); background: rgba(0,0,0,0.1); color: var(--darker-bg); }
+    #reply-banner { display: none; padding: 10px 24px; background: var(--darker-bg); border-top: 1.5px solid var(--border); justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--golden); }
+    #cancel-reply-btn { background: none; border: none; cursor: pointer; color: var(--grayout-bg); transition: 0.2s; font-size: 1.1rem; }
+    #cancel-reply-btn:hover { color: var(--text-color); }
+
+    #emoji-picker-wrapper { display: none; position: absolute; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.7); border-radius: 8px; }
+    .reactions-display { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .reaction-badge { background: var(--darker-bg); border: 1px solid var(--border); border-radius: 12px; padding: 2px 6px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .reaction-badge.active { border-color: var(--golden); background: var(--button-bg); }
+
+    .message-form { padding: 20px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 12px; background-color: var(--darker-bg); align-items: center; z-index: 10; }
     .action-btn { background: var(--dark-bg); border: 1.5px solid var(--border); color: var(--grayout-bg); border-radius: var(--radius-sm); width: 45px; height: 45px; font-size: 1.2rem; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; font-weight: 600; }
     .action-btn:hover { color: var(--golden); border-color: var(--golden); }
     .message-form input { flex: 1; padding: 16px 20px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; outline: none; background: var(--dark-bg); color: var(--text-color); }
     .message-form button[type="submit"] { padding: 0 28px; background-color: var(--golden); color: var(--darker-bg); border: none; border-radius: var(--radius-sm); font-weight: 500; font-size: 1rem; cursor: pointer; height: 100%; }
 
-    /* Modals & Popups */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 100; }
     .modal-overlay.active { display: flex; }
     .modal { background: var(--darker-bg); padding: 30px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); width: 400px; display: flex; flex-direction: column; gap: 15px; }
@@ -111,6 +119,17 @@
     .modal label { color: var(--grayout-bg); font-size: 0.85rem; text-transform: uppercase; }
     .modal input, .modal select { width: 100%; padding: 10px; background: var(--dark-bg); border: 1.5px solid var(--border); color: var(--text-color); border-radius: 5px; outline: none; }
     .modal button { padding: 12px; background: var(--golden); color: var(--darker-bg); border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-top: 5px; }
+    
+    /* Custom Channel Icons */
+    .channel-img {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      margin-right: 8px;
+      vertical-align: middle;
+      object-fit: cover;
+    }
+
     .btn-secondary { background: transparent !important; color: var(--text-color) !important; border: 1px solid var(--border) !important; }
   </style>
 </head>
@@ -119,8 +138,9 @@
   <div id="login-screen" class="screen active">
     <div class="login-box">
       <h1>yappapp</h1>
-      <p>enter a username to start yapping :3</p>
+      <p>enter credentials to start yapping :3</p>
       <input type="text" id="username-input" placeholder="username...">
+      <input type="password" id="password-input" placeholder="password...">
       <button id="login-btn">join Chat</button>
     </div>
   </div>
@@ -128,13 +148,20 @@
   <div id="chat-screen" class="screen">
     <aside class="sidebar">
       <div class="sidebar-header">
+        <img src="YappApp.png" alt="" style="width: 60px; height: 60px;">
         <h2>yappapp</h2>
-        <div class="settings-icon" id="settings-open" title="Settings">⚙️</div>
+        <div class="settings-icon" id="settings-open" title="Settings"><i class="fa-solid fa-gear"></i></div>
       </div>
       <div class="channel-list" id="global-list">
-        <div class="channel global-channel active" data-channel="general">@general</div>
-        <div class="channel global-channel" data-channel="coding">@coding</div>
-        <div class="channel global-channel" data-channel="gaming">@gaming</div>
+        <div class="channel global-channel active" data-channel="general">
+          <img src="general.png" class="channel-img">general
+        </div>
+        <div class="channel global-channel" data-channel="coding">
+          <img src="hacker.png" class="channel-img">coding
+        </div>
+        <div class="channel global-channel" data-channel="gaming">
+          <img src="gaming.png" class="channel-img">gaming
+        </div>
       </div>
       <h3>direct messages</h3>
       <div class="user-list" id="user-list"></div>
@@ -143,17 +170,22 @@
     <main class="chat-area">
       <header class="chat-header">
         <h2 id="current-chat-title">@general</h2>
+        <div id="mute-btn" title="Toggle Channel Mute"><i class="fa-solid fa-bell"></i></div>
       </header>
       
       <div class="message-container" id="messages"></div>
 
+      <div id="reply-banner">
+        <span><i class="fa-solid fa-reply" style="margin-right: 8px;"></i>Replying to <strong id="reply-to-name"></strong>: <span id="reply-to-text"></span></span>
+        <button id="cancel-reply-btn" title="Cancel Reply"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
       <form class="message-form" id="message-form">
         <div class="action-btn" id="attach-btn" title="Send File">
-          <span id="attach-icon">+</span>
+          <span id="attach-icon"><i class="fa-solid fa-plus"></i></span>
         </div>
         
         <input type="file" id="file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp">
-        
         <input type="text" id="message-input" placeholder="type a message..." autocomplete="off">
         <button type="submit" id="send-btn">send</button>
       </form>
@@ -183,6 +215,10 @@
       <button id="reset-settings-btn" class="btn-secondary" style="color: var(--golden) !important;">Reset to Default</button>
       <button id="close-settings-btn" class="btn-secondary">Cancel</button>
     </div>
+  </div>
+
+  <div id="emoji-picker-wrapper">
+    <emoji-picker class="dark"></emoji-picker>
   </div>
 
   <script type="module" src="app.js"></script>
