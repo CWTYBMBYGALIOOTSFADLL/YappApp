@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { 
   getFirestore, collection, addDoc, onSnapshot, query, orderBy, 
-  serverTimestamp, doc, setDoc, where, getDocs, deleteDoc, getDoc 
+  serverTimestamp, doc, setDoc, where, getDocs, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,18 +17,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// State Variables
 let currentUser = "";
-let currentChatType = "global"; // "global" or "dm"
-let currentChatTarget = "general"; // Default channel
+let currentChatType = "global"; 
+let currentChatTarget = "general"; 
 let unsubscribeChat = null; 
 
-// DOM Elements
 const loginScreen = document.getElementById('login-screen');
 const chatScreen = document.getElementById('chat-screen');
 const loginBtn = document.getElementById('login-btn');
 const usernameInput = document.getElementById('username-input');
-const passwordInput = document.getElementById('password-input');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const messagesContainer = document.getElementById('messages');
@@ -36,44 +33,30 @@ const userList = document.getElementById('user-list');
 const currentChatTitle = document.getElementById('current-chat-title');
 const globalChannels = document.querySelectorAll('.global-channel');
 
-// 1. Handle Login & Passwords
 loginBtn.addEventListener('click', async () => {
   const name = usernameInput.value.trim();
-  const password = passwordInput.value.trim();
 
-  if (name && password) {
+  if (name) {
     loginBtn.innerText = "loading..."; 
     
     try {
       const userRef = doc(db, "users", name);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        // ACCOUNT EXISTS: Check password
-        if (userSnap.data().password === password) {
-          currentUser = name;
-          enterChatApp();
-        } else {
-          alert("❌ Wrong password for this username!");
-          loginBtn.innerText = "join Chat"; 
-        }
-      } else {
-        // NO ACCOUNT: Create new
-        await setDoc(userRef, { 
-          username: name,
-          password: password, 
-          joinedAt: serverTimestamp() 
-        });
-        currentUser = name;
-        enterChatApp();
-      }
+      
+      await setDoc(userRef, { 
+        username: name,
+        lastLogin: serverTimestamp() 
+      }, { merge: true });
+      
+      currentUser = name;
+      enterChatApp();
+      
     } catch (error) {
-      console.error("Login error: ", error);
+      console.error(error);
       alert("Error connecting to database.");
       loginBtn.innerText = "join Chat";
     }
   } else {
-    alert("Please enter both a username and a password.");
+    alert("Please enter a username.");
   }
 });
 
@@ -81,10 +64,9 @@ function enterChatApp() {
   loginScreen.classList.remove('active');
   chatScreen.classList.add('active');
   loadUsersSidebar();
-  switchChat('global', 'general'); // Default to general channel
+  switchChat('global', 'general'); 
 }
 
-// 2. Load Sidebar Users (DMs)
 function loadUsersSidebar() {
   const q = query(collection(db, "users"), orderBy("username", "asc"));
   
@@ -110,7 +92,6 @@ function loadUsersSidebar() {
   });
 }
 
-// 3. Global Channel Clicks
 globalChannels.forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.channel').forEach(c => c.classList.remove('active'));
@@ -121,7 +102,6 @@ globalChannels.forEach(tab => {
   });
 });
 
-// 4. The Chat Switcher
 function switchChat(type, target) {
   currentChatType = type;
   currentChatTarget = target;
@@ -167,7 +147,6 @@ function switchChat(type, target) {
   });
 }
 
-// 5. Display Message
 function displayMessage(sender, text) {
   const isYours = sender === currentUser;
   
@@ -183,7 +162,6 @@ function displayMessage(sender, text) {
   messagesContainer.appendChild(msgDiv);
 }
 
-// 6. Send Message Router
 messageForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = messageInput.value.trim();
@@ -210,70 +188,44 @@ messageForm.addEventListener('submit', async (e) => {
         });
       }
     } catch (error) {
-      console.error("Error sending message: ", error);
+      console.error(error);
       alert("Uh oh, failed to send. Check the console.");
     }
   }
 });
 
-// ==========================================
-// 🛠️ DEVELOPER UTILITIES (DANGER ZONE)
-// ==========================================
-
 const ADMIN_PASSWORD = "yappmaster3000"; 
 
 window.nukeAllDMs = async () => {
   const pass = prompt("enter the admin password to wipe all DMs:");
-  if (pass !== ADMIN_PASSWORD) {
-      console.error("incorrect admin password.");
-      return; 
-  }
+  if (pass !== ADMIN_PASSWORD) return; 
 
   if (!confirm("are you ABSOLUTELY sure you want to delete ALL private messages?")) return;
   
-  console.log("Fetching all DMs...");
   const q = collection(db, "private_messages");
   const snapshot = await getDocs(q);
   
-  let count = 0;
   snapshot.forEach((docSnap) => {
       deleteDoc(docSnap.ref); 
-      count++;
   });
-  
-  console.log(`💥 BOOM! Deleted ${count} private messages.`);
 };
 
 window.nukeUserMessages = async (usernameTarget) => {
-  if (!usernameTarget) {
-      console.error("please provide a username.. example: nukeUserMessages('Vexi')");
-      return;
-  }
+  if (!usernameTarget) return;
 
   const pass = prompt(`enter password to delete all messages from @${usernameTarget}:`);
-  if (pass !== ADMIN_PASSWORD) {
-      console.error("incorrect admin password");
-      return; 
-  }
-  
-  console.log(`searching messages sent by @${usernameTarget}...`);
+  if (pass !== ADMIN_PASSWORD) return; 
   
   const globalQuery = query(collection(db, "global_messages"), where("sender", "==", usernameTarget));
   const dmQuery = query(collection(db, "private_messages"), where("sender", "==", usernameTarget));
   
-  let count = 0;
-
   const globalSnap = await getDocs(globalQuery);
   globalSnap.forEach((docSnap) => {
       deleteDoc(docSnap.ref);
-      count++;
   });
 
   const dmSnap = await getDocs(dmQuery);
   dmSnap.forEach((docSnap) => {
       deleteDoc(docSnap.ref);
-      count++;
   });
-  
-  console.log(`deleted ${count} messages sent by @${usernameTarget} from the database`);
 };
