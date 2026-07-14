@@ -211,6 +211,7 @@ fileInput.addEventListener('change', async (e) => {
 });
 
 // Login
+// Login
 loginBtn.addEventListener('click', async () => {
   const name = usernameInput.value.trim();
   const password = passwordInput.value.trim();
@@ -222,13 +223,23 @@ loginBtn.addEventListener('click', async () => {
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
-        if (userSnap.data().password !== password) {
-          alert("❌ Incorrect password for this user!");
+        const userData = userSnap.data();
+        
+        // 🚨 LEGACY ACCOUNT FIX: If they have no password on file, save this one!
+        if (!userData.password) {
+          await setDoc(userRef, { password: password }, { merge: true });
+          currentDisplayName = userData.displayName || name;
+        } 
+        // Otherwise, do the normal password check
+        else if (userData.password !== password) {
+          alert("incorrect password for this user!");
           loginBtn.innerText = "join Chat";
           return;
+        } else {
+          currentDisplayName = userData.displayName || name;
         }
-        currentDisplayName = userSnap.data().displayName || name;
       } else {
+        // Completely new user registration
         currentDisplayName = name;
         await setDoc(userRef, { username: name, password: password, displayName: name, joinedAt: serverTimestamp() });
       }
@@ -242,7 +253,7 @@ loginBtn.addEventListener('click', async () => {
       loginBtn.innerText = "join Chat";
     }
   } else {
-    alert("Please enter both username and password.");
+    alert("please enter both username and password.");
   }
 });
 
