@@ -47,7 +47,7 @@ const accentColorInput = document.getElementById('accent-color-input');
 const textColorInput = document.getElementById('text-color-input');
 const fontInput = document.getElementById('font-input');
 
-// Attachment DOM
+// Attachment DOM (Cleaned of all GIF selectors)
 const attachBtn = document.getElementById('attach-btn');
 const fileInput = document.getElementById('file-input');
 
