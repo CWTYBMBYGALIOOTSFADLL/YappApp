@@ -6,345 +6,112 @@
   <title>Yappapp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&family=Fira+Code:wght@400;500&family=Courier+Prime&display=swap" rel="stylesheet">
   <style>
     :root {
       --dark-bg: radial-gradient(circle at 0% 0%, #22242e 0.01%, #18181B 20%);
       --darker-bg: #181818;
       --text-color: #D4D4D4;
       --hover-color: #f3f3f3;
-      --hover-color2: #ffffff;
       --button-bg: #18181b;
       --border: #2b2b31;
-      --golden: #a3b3ff;
+      --golden: #a3b3ff; 
       --grayout-bg: #555759;
       --radius-sm: 10px; 
+      --app-font: 'Roboto Mono', monospace; 
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Roboto Mono', monospace;
-      font-weight: 300; 
-    }
-
-    body {
-      background: var(--dark-bg);
-      color: var(--text-color);
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .screen {
-      display: none;
-      width: 100%;
-      height: 100%;
-    }
-
-    .screen.active {
-      display: flex;
-    }
-
-    /* Login Screen */
-    #login-screen {
-      justify-content: center;
-      align-items: center;
-    }
-
-    .login-box {
-      background-color: var(--darker-bg);
-      padding: 40px;
-      border-radius: var(--radius-sm);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      text-align: center;
-      width: 100%;
-      max-width: 400px;
-      border: 1.5px solid var(--border);
-    }
-
-    .login-box h1 {
-      color: var(--golden);
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-      font-weight: 500;
-    }
-
-    .login-box p {
-      color: var(--grayout-bg);
-      font-weight: 400;
-    }
-
-    .login-box input {
-      width: 100%;
-      padding: 14px 16px;
-      margin: 12px 0;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 1rem;
-      outline: none;
-      background: var(--dark-bg);
-      color: var(--text-color);
-      transition: border-color 0.2s;
-    }
-    
-    .login-box input:focus {
-      border-color: var(--golden);
-    }
-
-    .login-box button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 12px;
-      background-color: var(--golden);
-      color: var(--darker-bg); 
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-
-    .login-box button:hover {
-      opacity: 0.9;
-    }
-    
-    .login-box button:active {
-      transform: scale(0.98);
-    }
-
-    /* Chat Interface */
-    #chat-screen {
-      display: none;
-      max-width: 1200px;
-      height: 90vh;
-      margin: auto;
-      background-color: var(--darker-bg);
-      border-radius: var(--radius-sm);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-      overflow: hidden;
-      border: 1.5px solid var(--border);
-    }
-
-    #chat-screen.active {
-      display: flex;
-    }
-
-    .sidebar {
-      width: 280px;
-      border-right: 1.5px solid var(--border);
-      padding: 24px 20px;
-      display: flex;
-      flex-direction: column;
-      background-color: var(--darker-bg);
-    }
-
-    .sidebar h2 {
-      font-size: 1.5rem;
-      margin-bottom: 24px;
-      color: var(--golden);
-      font-weight: 500;
-    }
-
-    .sidebar h3 {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      color: var(--grayout-bg);
-      margin: 24px 0 12px 0;
-      letter-spacing: 1.2px;
-      font-weight: 500;
-    }
-
-    .channel {
-      padding: 12px 15px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      font-weight: 400;
-      color: var(--grayout-bg);
-      transition: all 0.2s ease;
-      margin-bottom: 4px;
-    }
-
-    .channel:hover {
-      background-color: var(--button-bg);
-      color: var(--hover-color);
-    }
-
-    .channel.active {
-      background-color: var(--button-bg);
-      color: var(--golden);
-    }
-
-    .chat-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: var(--dark-bg);
-    }
-
-    .chat-header {
-      padding: 20px 24px;
-      border-bottom: 1.5px solid var(--border);
-      background-color: var(--darker-bg);
-    }
-    
-    .chat-header h2 {
-      font-size: 1.2rem;
-      font-weight: 500;
-    }
-
-    .message-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 24px;
-      gap: 20px;
-      overflow-y: auto;
-      background-color: var(--dark-bg); 
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
-    }
-
-    .message {
-      display: flex;
-      flex-direction: column;
-      max-width: 75%;
-    }
-
-    .message.yours {
-      align-self: flex-end;
-      align-items: flex-end;
-    }
-
-    .message .sender {
-      font-size: 0.8rem;
-      color: var(--grayout-bg);
-      margin-bottom: 6px;
-      font-weight: 400;
-      margin-left: 4px;
-    }
-    
-    .message.yours .sender {
-      margin-left: 0;
-      margin-right: 4px;
-    }
-
-    .message .bubble {
-      padding: 14px 18px;
-      background-color: var(--darker-bg);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text-color);
-      line-height: 1.5;
-      font-size: 0.95rem;
-      font-weight: 400;
-    }
-
-    .message.yours .bubble {
-      background-color: var(--golden);
-      color: var(--darker-bg); 
-      border: none;
-    }
-
-    .message-form {
-      padding: 20px 24px;
-      border-top: 1.5px solid var(--border);
-      display: flex;
-      gap: 12px;
-      background-color: var(--darker-bg);
-      border-radius: 10px 10px 0px 0px; 
-    }
-
-    .message-form input {
-      flex: 1;
-      padding: 16px 20px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 1rem;
-      font-weight: 400;
-      outline: none;
-      background: var(--dark-bg);
-      color: var(--text-color);
-      transition: border-color 0.2s;
-    }
-    
-    .message-form input:focus {
-      border-color: var(--golden);
-    }
-
-    .message-form button {
-      padding: 0 28px;
-      background-color: var(--golden);
-      color: var(--darker-bg); 
-      border: none;
-      border-radius: var(--radius-sm);
-      font-weight: 500;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    
-    .message-form button:hover {
-      opacity: 0.9;
-    }
-    
-    .message-form button:active {
-      transform: scale(0.95);
-    }
-
-    /* Loader Container */
-    .loader-wrapper {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-      width: 100%;
-      position: relative;
-    }
-
-    /* Uiverse Spinner */
-    .spinner {
-      width: 3em;
-      height: 3em;
+    /* Anti-Spam Disabled State */
+    .message-form input:disabled,
+    .message-form button:disabled {
+      opacity: 0.4;
       cursor: not-allowed;
-      border-radius: 50%;
-      border: 2px solid var(--border);
-      box-shadow: 
-        -10px -10px 10px var(--golden), 
-        0px -10px 10px 0px var(--text-color), 
-        10px -10px 10px var(--grayout-bg), 
-        10px 0 10px var(--border), 
-        10px 10px 10px 0px var(--button-bg), 
-        0 10px 10px 0px var(--darker-bg), 
-        -10px 10px 10px 0px var(--golden); 
-      animation: rot55 0.7s linear infinite;
+      pointer-events: none;
     }
 
-    .spinnerin {
+    /* Button Mini Spinner */
+    .btn-spinner {
       width: 1.5em;
       height: 1.5em;
       border-radius: 50%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      border: 1.5px solid var(--border);
+      box-shadow: 
+        -3px -3px 3px var(--golden), 
+        0px -3px 3px 0px var(--text-color), 
+        3px -3px 3px var(--grayout-bg), 
+        3px 0 3px var(--border), 
+        3px 3px 3px 0px var(--button-bg), 
+        0 3px 3px 0px var(--darker-bg), 
+        -3px 3px 3px 0px var(--golden); 
+      animation: rot55 0.7s linear infinite;
+      display: inline-block;
     }
 
-    @keyframes rot55 {
-      to { transform: rotate(360deg); }
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--app-font); font-weight: 300; }
+    body { background: var(--dark-bg); color: var(--text-color); height: 100vh; display: flex; justify-content: center; align-items: center; }
+    .screen { display: none; width: 100%; height: 100%; }
+    .screen.active { display: flex; }
 
-    .spinner-logo {
-      position: absolute;
-      width: 1.2em;
-      height: 1.2em;
-      border-radius: 50%;
-      object-fit: cover;
-      pointer-events: none;
-    }
+    /* Login Screen */
+    #login-screen { justify-content: center; align-items: center; }
+    .login-box { background-color: var(--darker-bg); padding: 40px; border-radius: var(--radius-sm); box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center; width: 100%; max-width: 400px; border: 1.5px solid var(--border); }
+    .login-box h1 { color: var(--golden); font-size: 2.5rem; margin-bottom: 10px; font-weight: 500; }
+    .login-box p { color: var(--grayout-bg); font-weight: 400; }
+    .login-box input { width: 100%; padding: 14px 16px; margin: 12px 0; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; outline: none; background: var(--dark-bg); color: var(--text-color); transition: border-color 0.2s; }
+    .login-box input:focus { border-color: var(--golden); }
+    .login-box button { width: 100%; padding: 14px; margin-top: 12px; background-color: var(--golden); color: var(--darker-bg); border: none; border-radius: var(--radius-sm); font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .login-box button:hover { opacity: 0.9; }
+
+    /* Chat Interface */
+    #chat-screen { display: none; max-width: 1200px; height: 90vh; margin: auto; background-color: var(--darker-bg); border-radius: var(--radius-sm); box-shadow: 0 12px 40px rgba(0,0,0,0.5); overflow: hidden; border: 1.5px solid var(--border); }
+    #chat-screen.active { display: flex; }
+
+    .sidebar { width: 280px; border-right: 1.5px solid var(--border); padding: 24px 20px; display: flex; flex-direction: column; background-color: var(--darker-bg); }
+    .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .sidebar-header h2 { font-size: 1.5rem; color: var(--golden); font-weight: 500; }
+    .settings-icon { cursor: pointer; color: var(--grayout-bg); font-size: 1.2rem; transition: 0.2s; }
+    .settings-icon:hover { color: var(--golden); transform: rotate(45deg); }
+    .sidebar h3 { font-size: 0.75rem; text-transform: uppercase; color: var(--grayout-bg); margin: 24px 0 12px 0; font-weight: 500; }
+    .channel { padding: 12px 15px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 400; color: var(--grayout-bg); transition: 0.2s; margin-bottom: 4px; }
+    .channel:hover { background-color: var(--button-bg); color: var(--hover-color); }
+    .channel.active { background-color: var(--button-bg); color: var(--golden); }
+    .user-list { flex: 1; overflow-y: auto; scrollbar-width: none; }
+
+    .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--dark-bg); position: relative; }
+    .chat-header { padding: 20px 24px; border-bottom: 1.5px solid var(--border); background-color: var(--darker-bg); }
+    .message-container { flex: 1; display: flex; flex-direction: column; padding: 24px; gap: 20px; overflow-y: auto; background-color: var(--dark-bg); scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    
+    .message { display: flex; flex-direction: column; max-width: 75%; position: relative; }
+    .message.yours { align-self: flex-end; align-items: flex-end; }
+    .message .sender { font-size: 0.8rem; color: var(--grayout-bg); margin-bottom: 6px; font-weight: 400; margin-left: 4px; }
+    .message.yours .sender { margin-left: 0; margin-right: 4px; }
+    
+    /* Bubble & Delete Button */
+    .message-bubble-wrapper { display: flex; align-items: center; gap: 8px; }
+    .message.yours .message-bubble-wrapper { flex-direction: row-reverse; }
+    .delete-btn { opacity: 0; cursor: pointer; font-size: 1rem; transition: 0.2s; background: none; border: none; padding: 5px; }
+    .message:hover .delete-btn { opacity: 1; }
+    .delete-btn:hover { transform: scale(1.2); }
+
+    .message .bubble { padding: 14px 18px; background-color: var(--darker-bg); border: 1.5px solid var(--border); border-radius: var(--radius-sm); color: var(--text-color); line-height: 1.5; font-size: 0.95rem; word-wrap: break-word; }
+    .message.yours .bubble { background-color: var(--golden); color: var(--darker-bg); border: none; font-weight: 500; }
+    .message img { max-width: 250px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); }
+
+    .message-form { padding: 20px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 12px; background-color: var(--darker-bg); border-radius: 10px 10px 0px 0px; align-items: center; z-index: 10; }
+    .action-btn { background: var(--dark-bg); border: 1.5px solid var(--border); color: var(--grayout-bg); border-radius: var(--radius-sm); width: 45px; height: 45px; font-size: 1.2rem; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; font-weight: 600; }
+    .action-btn:hover { color: var(--golden); border-color: var(--golden); }
+    .message-form input { flex: 1; padding: 16px 20px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; outline: none; background: var(--dark-bg); color: var(--text-color); }
+    .message-form button[type="submit"] { padding: 0 28px; background-color: var(--golden); color: var(--darker-bg); border: none; border-radius: var(--radius-sm); font-weight: 500; font-size: 1rem; cursor: pointer; height: 100%; }
+
+    /* Modals & Popups */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 100; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--darker-bg); padding: 30px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); width: 400px; display: flex; flex-direction: column; gap: 15px; }
+    .modal h2 { color: var(--golden); margin-bottom: 10px; }
+    .modal label { color: var(--grayout-bg); font-size: 0.85rem; text-transform: uppercase; }
+    .modal input, .modal select { width: 100%; padding: 10px; background: var(--dark-bg); border: 1.5px solid var(--border); color: var(--text-color); border-radius: 5px; outline: none; }
+    .modal button { padding: 12px; background: var(--golden); color: var(--darker-bg); border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-top: 5px; }
+    .btn-secondary { background: transparent !important; color: var(--text-color) !important; border: 1px solid var(--border) !important; }
   </style>
 </head>
 <body>
@@ -353,24 +120,24 @@
     <div class="login-box">
       <h1>yappapp</h1>
       <p>enter a username to start yapping :3</p>
-      
       <input type="text" id="username-input" placeholder="username...">
-      
       <button id="login-btn">join Chat</button>
     </div>
   </div>
 
   <div id="chat-screen" class="screen">
     <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>yappapp</h2>
+        <div class="settings-icon" id="settings-open" title="Settings">⚙️</div>
+      </div>
       <div class="channel-list" id="global-list">
         <div class="channel global-channel active" data-channel="general">@general</div>
         <div class="channel global-channel" data-channel="coding">@coding</div>
         <div class="channel global-channel" data-channel="gaming">@gaming</div>
       </div>
-      
       <h3>direct messages</h3>
-      <div class="user-list" id="user-list">
-        </div>
+      <div class="user-list" id="user-list"></div>
     </aside>
 
     <main class="chat-area">
@@ -378,14 +145,42 @@
         <h2 id="current-chat-title">@general</h2>
       </header>
       
-      <div class="message-container" id="messages">
-        </div>
+      <div class="message-container" id="messages"></div>
 
       <form class="message-form" id="message-form">
-        <input type="text" id="message-input" placeholder="type a message..." autocomplete="off" required>
+        <div class="action-btn" id="attach-btn" title="Send File">
+          <span id="attach-icon">+</span>
+        </div>
+        
+        <input type="text" id="message-input" placeholder="type a message..." autocomplete="off">
         <button type="submit" id="send-btn">send</button>
       </form>
     </main>
+  </div>
+
+  <div class="modal-overlay" id="settings-overlay">
+    <div class="modal">
+      <h2>Settings</h2>
+      <label>Display Name</label>
+      <input type="text" id="display-name-input" placeholder="How others see you...">
+      
+      <label>Accent Color</label>
+      <input type="color" id="accent-color-input" value="#a3b3ff">
+      <label>Text Color</label>
+      <input type="color" id="text-color-input" value="#D4D4D4">
+      
+      <label>App Font</label>
+      <select id="font-input">
+        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+        <option value="'Fira Code', monospace">Fira Code</option>
+        <option value="'Courier Prime', monospace">Courier Prime</option>
+        <option value="sans-serif">Standard UI</option>
+      </select>
+
+      <button id="save-settings-btn">Save Changes</button>
+      <button id="reset-settings-btn" class="btn-secondary" style="color: var(--golden) !important;">Reset to Default</button>
+      <button id="close-settings-btn" class="btn-secondary">Cancel</button>
+    </div>
   </div>
 
   <script type="module" src="app.js"></script>
