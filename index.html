@@ -13,18 +13,20 @@
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  
   <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
   
   <style>
     :root {
       --dark-bg: radial-gradient(circle at 0% 0%, #22242e 0.01%, #18181B 20%);
       --darker-bg: #181818;
-      --text-color: #D4D4D4;
+      --text-color: #FFFFFF; /* Changed from #D4D4D4 to #FFFFFF (Pure White) */
       --hover-color: #f3f3f3;
       --button-bg: #18181b;
       --border: #2b2b31;
       --golden: #a3b3ff; 
-      --grayout-bg: #555759;
+      --grayout-bg: #FFFFFF; /* Optional: Change this to #FFFFFF if you want all grayed-out subtext to also be white */
       --radius-sm: 10px; 
       --app-font: 'Roboto Mono', monospace; 
     }
@@ -167,6 +169,46 @@
       object-fit: cover;
     }
 
+    /* ========================================== */
+    /* 🧠 BRAINROT CONTENT PANELS (SHORTS)        */
+    /* ========================================== */
+    .shorts-panel {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 315px;
+      height: 560px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      border: 2px solid var(--border);
+      z-index: 5;
+      background: var(--darker-bg);
+      
+      /* THE MAGIC SCROLL CSS */
+      overflow-y: scroll; 
+      scroll-snap-type: y mandatory; /* Forces it to snap to the next video */
+      scrollbar-width: none; /* Hides scrollbar in Firefox */
+    }
+    
+    /* Hides scrollbar in Chrome/Safari */
+    .shorts-panel::-webkit-scrollbar { 
+      display: none; 
+    }
+
+    /* Wrapper for each individual video */
+    .short-wrapper {
+      width: 100%;
+      height: 100%;
+      scroll-snap-align: start; /* Tells the browser exactly where to snap */
+    }
+
+    .shorts-panel.left { left: 20px; }
+    .shorts-panel.right { right: 20px; }
+
+    @media (max-width: 1850px) {
+      .shorts-panel { display: none; }
+    }
+
     .btn-secondary { background: transparent !important; color: var(--text-color) !important; border: 1px solid var(--border) !important; }
   </style>
 </head>
@@ -202,6 +244,9 @@
       <h3>direct messages</h3>
       <div class="user-list" id="user-list"></div>
     </aside>
+
+    <div class="shorts-panel left" id="shorts-left"></div>
+    <div class="shorts-panel right" id="shorts-right"></div>
 
     <main class="chat-area">
       <header class="chat-header">

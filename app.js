@@ -329,8 +329,8 @@ function addUnreadBadge(channelId) {
   const badge = document.getElementById(`badge-${channelId}`);
   
   if (badge) {
-    // Determine the image name based on the count (cap at 10plus.png)
-    let imgName = count > 10 ? '10plus.png' : `${count}.png`;
+    // Determine the image name based on the count (cap at 10 or more)
+    let imgName = count >= 10 ? '10plus.png' : `${count}.png`;
     
     // Inject the image into the badge directly next to the name
     badge.innerHTML = `<img src="${imgName}" alt="Unread">`;
@@ -499,13 +499,19 @@ function displayMessage(data, docId, collectionName) {
   
   let quotedHtml = "";
   if (data.replyTo) {
-    const replySnippet = data.replyTo.type === 'image' ? '[Image]' : data.replyTo.text;
+    // Also decrypt the quoted reply preview!
+    let replySnippet = data.replyTo.type === 'image' ? '[Image]' : decryptText(data.replyTo.text);
     quotedHtml = `<div class="quoted-reply"><i class="fa-solid fa-reply" style="margin-right: 4px;"></i> Replying to <strong>@${data.replyTo.senderName}</strong>: ${replySnippet}</div>`;
   }
 
   let contentHtml = "";
-  if (data.type === 'image') contentHtml = `<img src="${data.imageUrl}" alt="image">`;
-  else contentHtml = `<span>${data.text}</span>`;
+  if (data.type === 'image') {
+    contentHtml = `<img src="${data.imageUrl}" alt="image">`;
+  } else {
+    // 🔥 Decrypt the text before putting it in the bubble!
+    const readableText = decryptText(data.text);
+    contentHtml = `<span>${readableText}</span>`;
+  }
 
   let reactionsDisplayHtml = `<div class="reactions-display">`;
   const reactionsMap = data.reactions || {};
@@ -587,11 +593,16 @@ function displayMessage(data, docId, collectionName) {
 }
 
 async function sendPayloadToDatabase(textContent, imageUrlContent, payloadType) {
+  // 🔥 Encrypt the text right here before the payload is built!
+  let safeText = textContent;
+  if (payloadType === "text" && textContent) {
+    safeText = encryptText(textContent);
+  }
+
   const payload = {
-    type: payloadType, text: textContent, imageUrl: imageUrlContent, sender: currentUser,
+    type: payloadType, text: safeText, imageUrl: imageUrlContent, sender: currentUser,
     senderDisplayName: currentDisplayName, createdAt: serverTimestamp(), reactions: {}
   };
-  if (replyingTo) payload.replyTo = replyingTo;
 
   try {
     if (currentChatType === 'global') {
@@ -605,6 +616,79 @@ async function sendPayloadToDatabase(textContent, imageUrlContent, payloadType) 
   } catch (error) { console.error(error); } 
   finally { replyingTo = null; replyBanner.style.display = 'none'; }
 }
+
+// ==========================================
+// 🔐 ENCRYPTION ENGINE (AES)
+// ==========================================
+const SECRET_KEY = "YAPPMASTER!.!"; 
+
+function encryptText(text) {
+  if (!text) return "";
+  return CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
+}
+
+function decryptText(ciphertext) {
+  if (!ciphertext) return "";
+  try {
+    const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
+    const originalText = bytes.toString(CryptoJS.enc.Utf8);
+    // If it fails to decrypt (wrong key), return a warning
+    return originalText || "[Encrypted Message!!]";
+  } catch (err) {
+    return "[Encrypted Message!!]";
+  }
+}
+
+// ==========================================
+// 🧠 BRAINROT FEED CONFIGURATION
+// ==========================================
+// Paste your YouTube Short links (or just the 11-character IDs) right here.
+// The code will automatically alternate them between the left and right panels!
+const brainrotLinks = [
+  "https://www.youtube.com/shorts/UEYUozZ0Jtw", // Left Panel
+  "https://www.youtube.com/shorts/8MJrB_ZhLWg", // Right Panel
+  "https://www.youtube.com/shorts/zW7z4w118QU", // Left Panel
+  "https://www.youtube.com/shorts/utmdQfyaAO0", // Right Panel
+  "https://www.youtube.com/shorts/kksKRA5_To8", // Left Panel
+  "https://www.youtube.com/shorts/N70unL6_UU8", // Right Panel
+  "https://www.youtube.com/shorts/iczoCkbrO9k", // Left Panel
+  "https://www.youtube.com/shorts/__3mSAgclmk", // Right Panel
+  "https://www.youtube.com/shorts/mmUUsE3NfcM"  // Left Panel (Alternates back to Left)
+];
+
+function extractYouTubeID(url) {
+  if (url.length === 11) return url; // If you just pasted the ID, use it directly
+  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
+function loadBrainrotFeed() {
+  const leftPanel = document.getElementById('shorts-left');
+  const rightPanel = document.getElementById('shorts-right');
+  if (!leftPanel || !rightPanel) return;
+
+  brainrotLinks.forEach((link, index) => {
+    const videoId = extractYouTubeID(link);
+    if (!videoId) return;
+
+    const iframeHtml = `
+      <div class="short-wrapper">
+        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      </div>
+    `;
+
+    // Evens go left, odds go right
+    if (index % 2 === 0) {
+      leftPanel.insertAdjacentHTML('beforeend', iframeHtml);
+    } else {
+      rightPanel.insertAdjacentHTML('beforeend', iframeHtml);
+    }
+  });
+}
+
+// Fire the function immediately to build the panels
+loadBrainrotFeed();
 
 messageForm.addEventListener('submit', (e) => {
   e.preventDefault();
