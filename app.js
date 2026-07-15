@@ -35,6 +35,7 @@ let currentChatType = "global";
 let currentChatTarget = "general"; 
 let unsubscribeChat = null; 
 let replyingTo = null; 
+let unsubscribeUserCheck = null; 
 
 let mutedChannels = JSON.parse(localStorage.getItem('yapp_muted_channels') || '[]');
 let unreadCounts = {};
@@ -141,6 +142,17 @@ saveSettingsBtn.addEventListener('click', async () => {
   const newText = textColorInput.value;
   const newFont = fontInput.value;
   
+  const newName = displayNameInput.value.trim() || currentUser;
+
+  // Security Verification: Block stealing or cloning existing display names
+  if (newName !== currentDisplayName) {
+    const nameClaimed = await isDisplayNameTaken(newName, currentUser);
+    if (nameClaimed) {
+      alert("❌ That display name is already taken by another user!");
+      return;
+    }
+  }
+
   document.documentElement.style.setProperty('--golden', newAccent);
   document.documentElement.style.setProperty('--text-color', newText);
   document.documentElement.style.setProperty('--app-font', newFont);
@@ -149,7 +161,6 @@ saveSettingsBtn.addEventListener('click', async () => {
   localStorage.setItem('yapp_text', newText);
   localStorage.setItem('yapp_font', newFont);
 
-  const newName = displayNameInput.value.trim() || currentUser;
   currentDisplayName = newName;
   
   try {
@@ -224,6 +235,21 @@ fileInput.addEventListener('change', async (e) => {
 });
 
 // ==========================================
+// 🛡️ NAME CLONING PREVENTION (Security)
+// ==========================================
+async function isDisplayNameTaken(targetName, excludeUsername = "") {
+  const q = query(collection(db, "users"), where("displayName", "==", targetName));
+  const querySnapshot = await getDocs(q);
+  let taken = false;
+  querySnapshot.forEach((docSnap) => {
+    if (docSnap.id !== excludeUsername) {
+      taken = true;
+    }
+  });
+  return taken;
+}
+
+// ==========================================
 // 🔑 AUTHENTICATION & PRESENCE
 // ==========================================
 loginBtn.addEventListener('click', async () => {
@@ -251,6 +277,14 @@ loginBtn.addEventListener('click', async () => {
           currentDisplayName = userData.displayName || name;
         }
       } else {
+        // Prevent registration with username that matches someone else's display name
+        const nameClaimed = await isDisplayNameTaken(name);
+        if (nameClaimed) {
+          alert("❌ That display name/username is already taken!");
+          loginBtn.innerText = "join Chat";
+          return;
+        }
+
         currentDisplayName = name;
         await setDoc(userRef, { username: name, password: password, displayName: name, joinedAt: serverTimestamp() });
       }
@@ -273,6 +307,15 @@ function enterChatApp() {
   chatScreen.classList.add('active');
   loginSessionTime = Date.now();
   
+  // Real-time listener: Check if account gets deleted. Force-kick if missing.
+  unsubscribeUserCheck = onSnapshot(doc(db, "users", currentUser), (docSnap) => {
+    if (!docSnap.exists()) {
+      alert("⚠️ Your account has been deleted! Logging out...");
+      if (unsubscribeUserCheck) unsubscribeUserCheck();
+      window.location.reload();
+    }
+  });
+
   addDoc(collection(db, "global_messages"), {
     channel: "general", type: "system", text: `<i class="fa-solid fa-arrow-right-to-bracket"></i> <strong>${currentDisplayName}</strong> joined the server!`,
     sender: currentUser, createdAt: serverTimestamp()
@@ -310,7 +353,9 @@ function enterChatApp() {
 }
 
 window.addEventListener('beforeunload', () => {
-  if(currentUser) {
+  if (currentUser) {
+    if (unsubscribeUserCheck) unsubscribeUserCheck();
+
     addDoc(collection(db, "global_messages"), {
       channel: "general", type: "system", text: `<i class="fa-solid fa-arrow-right-from-bracket"></i> <strong>${currentDisplayName}</strong> disconnected.`,
       sender: currentUser, createdAt: serverTimestamp()
@@ -329,10 +374,7 @@ function addUnreadBadge(channelId) {
   const badge = document.getElementById(`badge-${channelId}`);
   
   if (badge) {
-    // Determine the image name based on the count (cap at 10 or more)
     let imgName = count >= 10 ? '10plus.png' : `${count}.png`;
-    
-    // Inject the image into the badge directly next to the name
     badge.innerHTML = `<img src="${imgName}" alt="Unread">`;
     badge.classList.add('active');
   }
@@ -360,7 +402,6 @@ function loadUsersSidebar() {
         const userEl = document.createElement('div');
         userEl.classList.add('channel');
         
-        // Includes the text and the badge span immediately following
         userEl.innerHTML = `
           <i class="fa-solid fa-at" style="opacity: 0.6;"></i> ${user.displayName || user.username}
           <span class="notif-badge" id="badge-${user.username}"></span>
@@ -499,7 +540,6 @@ function displayMessage(data, docId, collectionName) {
   
   let quotedHtml = "";
   if (data.replyTo) {
-    // Also decrypt the quoted reply preview!
     let replySnippet = data.replyTo.type === 'image' ? '[Image]' : decryptText(data.replyTo.text);
     quotedHtml = `<div class="quoted-reply"><i class="fa-solid fa-reply" style="margin-right: 4px;"></i> Replying to <strong>@${data.replyTo.senderName}</strong>: ${replySnippet}</div>`;
   }
@@ -508,7 +548,6 @@ function displayMessage(data, docId, collectionName) {
   if (data.type === 'image') {
     contentHtml = `<img src="${data.imageUrl}" alt="image">`;
   } else {
-    // 🔥 Decrypt the text before putting it in the bubble!
     const readableText = decryptText(data.text);
     contentHtml = `<span>${readableText}</span>`;
   }
@@ -554,9 +593,12 @@ function displayMessage(data, docId, collectionName) {
   `;
   
   msgDiv.querySelector('.reply-btn').addEventListener('click', () => {
+    // Decrypt the text before setting it in the replyingTo object and the UI!
+    const decryptedReplyText = data.type === 'image' ? "" : decryptText(data.text);
+    
     replyingTo = { messageId: docId, senderName: senderName, text: data.text || "", type: data.type };
     replyToName.innerText = senderName;
-    replyToText.innerText = data.type === 'image' ? '[Image attached]' : data.text;
+    replyToText.innerText = data.type === 'image' ? '[Image attached]' : decryptedReplyText;
     replyBanner.style.display = 'flex';
     messageInput.focus();
   });
@@ -593,7 +635,13 @@ function displayMessage(data, docId, collectionName) {
 }
 
 async function sendPayloadToDatabase(textContent, imageUrlContent, payloadType) {
-  // 🔥 Encrypt the text right here before the payload is built!
+  const userCheck = await getDoc(doc(db, "users", currentUser));
+  if (!userCheck.exists()) {
+    alert("⚠️ Your account has been deleted! Logging out...");
+    window.location.reload();
+    return;
+  }
+
   let safeText = textContent;
   if (payloadType === "text" && textContent) {
     safeText = encryptText(textContent);
@@ -632,7 +680,6 @@ function decryptText(ciphertext) {
   try {
     const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
     const originalText = bytes.toString(CryptoJS.enc.Utf8);
-    // If it fails to decrypt (wrong key), return a warning
     return originalText || "[Encrypted Message!!]";
   } catch (err) {
     return "[Encrypted Message!!]";
@@ -642,22 +689,20 @@ function decryptText(ciphertext) {
 // ==========================================
 // 🧠 BRAINROT FEED CONFIGURATION
 // ==========================================
-// Paste your YouTube Short links (or just the 11-character IDs) right here.
-// The code will automatically alternate them between the left and right panels!
 const brainrotLinks = [
-  "https://www.youtube.com/shorts/UEYUozZ0Jtw", // Left Panel
-  "https://www.youtube.com/shorts/8MJrB_ZhLWg", // Right Panel
-  "https://www.youtube.com/shorts/zW7z4w118QU", // Left Panel
-  "https://www.youtube.com/shorts/utmdQfyaAO0", // Right Panel
-  "https://www.youtube.com/shorts/kksKRA5_To8", // Left Panel
-  "https://www.youtube.com/shorts/N70unL6_UU8", // Right Panel
-  "https://www.youtube.com/shorts/iczoCkbrO9k", // Left Panel
-  "https://www.youtube.com/shorts/__3mSAgclmk", // Right Panel
-  "https://www.youtube.com/shorts/mmUUsE3NfcM"  // Left Panel (Alternates back to Left)
+  "https://www.youtube.com/shorts/UEYUozZ0Jtw", 
+  "https://www.youtube.com/shorts/8MJrB_ZhLWg", 
+  "https://www.youtube.com/shorts/zW7z4w118QU", 
+  "https://www.youtube.com/shorts/utmdQfyaAO0", 
+  "https://www.youtube.com/shorts/kksKRA5_To8", 
+  "https://www.youtube.com/shorts/N70unL6_UU8", 
+  "https://www.youtube.com/shorts/iczoCkbrO9k", 
+  "https://www.youtube.com/shorts/__3mSAgclmk", 
+  "https://www.youtube.com/shorts/mmUUsE3NfcM"  
 ];
 
 function extractYouTubeID(url) {
-  if (url.length === 11) return url; // If you just pasted the ID, use it directly
+  if (url.length === 11) return url; 
   const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
@@ -678,7 +723,6 @@ function loadBrainrotFeed() {
       </div>
     `;
 
-    // Evens go left, odds go right
     if (index % 2 === 0) {
       leftPanel.insertAdjacentHTML('beforeend', iframeHtml);
     } else {
@@ -687,10 +731,9 @@ function loadBrainrotFeed() {
   });
 }
 
-// Fire the function immediately to build the panels
 loadBrainrotFeed();
 
-messageForm.addEventListener('submit', (e) => {
+messageForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (isSpamBlocked) return;
   const text = messageInput.value.trim();
@@ -722,14 +765,92 @@ messageForm.addEventListener('submit', (e) => {
   sendPayloadToDatabase(text, null, "text");
 });
 
+// ==========================================
+// 🛠️ UPGRADED ADMIN NUKE UTILITIES
+// ==========================================
 const ADMIN_PASSWORD = "yappmaster3000"; 
+
 window.nukeAllMessages = async () => {
-  const pass = prompt("enter the admin password to wipe ALL messages:");
-  if (pass !== ADMIN_PASSWORD) return; 
-  if (!confirm("are you ABSOLUTELY sure you want to delete EVERY message?")) return;
+  const pass = prompt("Enter the admin password:");
+  if (pass !== ADMIN_PASSWORD) {
+    alert("❌ Incorrect password!");
+    return;
+  }
+
+  const choice = prompt(
+    "What do you want to nuke?\n" +
+    "1 - Wipe absolutely EVERYTHING (All chats, DMs, Channels)\n" +
+    "2 - Wipe a specific channel's messages (e.g. general, coding, gooning)\n" +
+    "3 - Wipe messages from a specific user (global and DMs)"
+  );
+
+  if (!choice) return;
+
+  const globalRef = collection(db, "global_messages");
+  const privateRef = collection(db, "private_messages");
+
+  // --- OPTION 1: FULL WIPE ---
+  if (choice === "1") {
+    if (!confirm("⚠️ Are you ABSOLUTELY sure you want to delete EVERY message in the database?")) return;
+    
+    const globalSnap = await getDocs(globalRef);
+    globalSnap.forEach((docSnap) => deleteDoc(docSnap.ref));
+    
+    const dmSnap = await getDocs(privateRef);
+    dmSnap.forEach((docSnap) => deleteDoc(docSnap.ref));
+    
+    alert("🔥 Database wiped successfully!");
+  } 
   
-  const globalSnap = await getDocs(collection(db, "global_messages"));
-  globalSnap.forEach((docSnap) => { deleteDoc(docSnap.ref); });
-  const dmSnap = await getDocs(collection(db, "private_messages"));
-  dmSnap.forEach((docSnap) => { deleteDoc(docSnap.ref); });
+  // --- OPTION 2: NUKE SPECIFIC CHANNEL ---
+  else if (choice === "2") {
+    const targetChannel = prompt("Enter the exact name of the channel to wipe (e.g. general, coding, gooning):")?.trim().toLowerCase();
+    if (!targetChannel) return;
+
+    if (!confirm(`⚠️ Delete all messages in #${targetChannel}?`)) return;
+
+    // Fetch and delete only messages in this global channel
+    const q = query(globalRef, where("channel", "==", targetChannel));
+    const querySnapshot = await getDocs(q);
+    
+    let count = 0;
+    querySnapshot.forEach((docSnap) => {
+      deleteDoc(docSnap.ref);
+      count++;
+    });
+
+    alert(`🔥 Deleted ${count} messages from #${targetChannel}!`);
+  } 
+  
+  // --- OPTION 3: NUKE SPECIFIC USER'S MESSAGES ---
+  else if (choice === "3") {
+    const targetUser = prompt("Enter the username of the person whose messages you want to delete:")?.trim();
+    if (!targetUser) return;
+
+    if (!confirm(`⚠️ Delete all messages sent by @${targetUser} across all channels and DMs?`)) return;
+
+    // 1. Delete their global channel messages
+    const qGlobal = query(globalRef, where("sender", "==", targetUser));
+    const globalSnap = await getDocs(qGlobal);
+    let globalCount = 0;
+    globalSnap.forEach((docSnap) => {
+      deleteDoc(docSnap.ref);
+      globalCount++;
+    });
+
+    // 2. Delete their private direct messages
+    const qPrivate = query(privateRef, where("sender", "==", targetUser));
+    const privateSnap = await getDocs(qPrivate);
+    let privateCount = 0;
+    privateSnap.forEach((docSnap) => {
+      deleteDoc(docSnap.ref);
+      privateCount++;
+    });
+
+    alert(`🔥 Deleted ${globalCount} global messages and ${privateCount} DMs sent by @${targetUser}!`);
+  } 
+  
+  else {
+    alert("❌ Invalid option choice.");
+  }
 };
