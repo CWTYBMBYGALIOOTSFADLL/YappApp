@@ -209,12 +209,79 @@
       .shorts-panel { display: none; }
     }
 
+    /* Flex alignment to put avatar left and bubble right */
+    .message { 
+      display: flex; 
+      flex-direction: column; 
+      max-width: 75%; 
+      position: relative; 
+      margin-bottom: 6px; 
+    }
+    .message.yours { 
+      align-self: flex-end; 
+      align-items: flex-end; 
+    }
+    
+    /* Wrapper for the textual parts of a message */
+    /* Restructured content wrapper */
+    .message-content-wrapper { 
+      display: flex; 
+      flex-direction: column; 
+      width: 100%; 
+    }
+    .message.yours .message-content-wrapper { align-items: flex-end; }
+
+    .message-avatar { 
+      width: 36px; 
+      height: 36px; 
+      border-radius: 50%; 
+      object-fit: cover; 
+      border: 1.5px solid var(--border); 
+      flex-shrink: 0; 
+    }
+
+    .sender-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; margin-left: 4px; }
+    .message.yours .sender-row { flex-direction: row-reverse; margin-left: 0; margin-right: 4px; }
+    .sender-name { font-size: 0.8rem; color: var(--grayout-bg); font-weight: 400; }
+    .timestamp { font-size: 0.65rem; color: #666; }
+    
+    .message-bubble-wrapper { 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      position: relative; 
+      width: 100%; 
+    }
+    .message.yours .message-bubble-wrapper { 
+      flex-direction: row-reverse; 
+    }
+    
+    .message .bubble { 
+      padding: 14px 18px; 
+      background-color: var(--darker-bg); 
+      border: 1.5px solid var(--border); 
+      border-radius: var(--radius-sm); 
+      color: var(--text-color); 
+      line-height: 1.5; 
+      font-size: 0.95rem; 
+      word-wrap: break-word; 
+      display: flex; 
+      flex-direction: column; 
+      max-width: 100%; 
+    }
+    .message.yours .bubble { 
+      background-color: var(--golden); 
+      color: var(--darker-bg); 
+      border: none; 
+      font-weight: 500; 
+    }
+
     .btn-secondary { background: transparent !important; color: var(--text-color) !important; border: 1px solid var(--border) !important; }
   </style>
 </head>
 <body>
 
-  <h1 style="
+  <h1 hidden style="
       position: fixed;
       top: 50%;
       left: 50%;
@@ -227,15 +294,7 @@
       YappApp has been temporarily shut down...
   </h1>
 
-  <div id="login-screen" class="screen active">
-    <div class="login-box" style="display: none;">
-      <h1>yappapp</h1>
-      <p>enter credentials to start yapping :3</p>
-      <input type="text" id="username-input" placeholder="username...">
-      <input type="password" id="password-input" placeholder="password...">
-      <button id="login-btn">join Chat</button>
-    </div>
-  </div>
+  
 
   <div id="chat-screen" class="screen">
     <aside class="sidebar">
@@ -263,8 +322,16 @@
 
     <main class="chat-area">
       <header class="chat-header">
-        <h2 id="current-chat-title">@general</h2>
-        <div id="mute-btn" title="Toggle Channel Mute"><i class="fa-solid fa-bell"></i></div>
+        <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div id="user-profile-badge" style="display: flex; align-items: center; gap: 10px; background: var(--dark-bg); padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border);">
+            <img id="user-avatar" src="" alt="avatar" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: none;">
+            <span id="user-profile-name" style="font-size: 0.85rem; font-weight: 500; color: var(--text-color);"></span>
+            <i class="fa-brands fa-google" style="color: #4285F4; font-size: 0.9rem;"></i>
+          </div>
+          <div id="mute-btn" title="Toggle Channel Mute"><i class="fa-solid fa-bell"></i></div>
+        </div>
       </header>
       
       <div class="message-container" id="messages"></div>
@@ -291,6 +358,13 @@
       <h2>Settings</h2>
       <label>Display Name</label>
       <input type="text" id="display-name-input" placeholder="How others see you...">
+      
+      <label>Profile Picture</label>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <img id="settings-avatar-preview" src="" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border);">
+        <button id="upload-pfp-btn" style="padding: 8px 12px; font-size: 0.85rem; margin-top: 0; background: var(--dark-bg); color: var(--text-color); border: 1.5px solid var(--border);">Choose Image</button>
+        <input type="file" id="pfp-file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp">
+      </div>
       
       <label>Accent Color</label>
       <input type="color" id="accent-color-input" value="#a3b3ff">

@@ -1,8 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { 
   getFirestore, collection, addDoc, onSnapshot, query, orderBy, 
-  serverTimestamp, doc, setDoc, where, getDocs, deleteDoc, getDoc, updateDoc
+  serverTimestamp, doc, setDoc, where, getDocs, deleteDoc, getDoc, updateDoc,
+  limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { 
+  getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8pyL9d6X0j1D0vHLhi0lWNID9K8jpVnU",
@@ -15,6 +19,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 const IMGBB_API_KEY = "54f9963d526d01ed942d9a92b00bf05f"; 
 
@@ -29,17 +35,52 @@ pingSound.volume = 0.6;
 // ==========================================
 // 🧠 STATE MANAGEMENT
 // ==========================================
-let currentUser = "";
+let currentUser = ""; // Will be set to user's UID
+let currentEmail = "";
 let currentDisplayName = ""; 
 let currentChatType = "global"; 
 let currentChatTarget = "general"; 
-let unsubscribeChat = null; 
 let replyingTo = null; 
+
+// Listeners tracking for strict lazy loading and clean sign-outs
+let unsubscribeChat = null; 
 let unsubscribeUserCheck = null; 
+let unsubscribeSidebar = null;
+let unsubscribeBgGlobal = null;
+let unsubscribeBgDM = null;
 
 let mutedChannels = JSON.parse(localStorage.getItem('yapp_muted_channels') || '[]');
 let unreadCounts = {};
 let loginSessionTime = 0; 
+
+// Pagination State
+const MESSAGES_PER_PAGE = 50;
+let oldestLoadedDoc = null; 
+let hasMoreMessages = true; 
+let isFirstPageLoaded = false;
+
+// Spam Tracker
+let lastSentMessageText = "";
+let duplicateMessageCount = 0;
+let recentMessageTimestamps = [];
+let isSpamBlocked = false;
+
+const userProfileName = document.getElementById('user-profile-name');
+const userAvatar = document.getElementById('user-avatar');
+
+const uploadPfpBtn = document.getElementById('upload-pfp-btn');
+const pfpFileInput = document.getElementById('pfp-file-input');
+const settingsAvatarPreview = document.getElementById('settings-avatar-preview');
+let pendingPfpUrl = ""; // Holds the newly uploaded ImgBB URL before saving
+
+const customUsernameInput = document.getElementById('custom-username-input');
+
+// Temp/Disposable Email Blacklist
+const TEMP_EMAIL_DOMAINS = [
+  "mailinator.com", "yopmail.com", "tempmail.com", "10minutemail.com", 
+  "dispostable.com", "guerrillamail.com", "sharklasers.com", "getairmail.com",
+  "burnermail.io", "maildrop.cc", "temp-mail.org", "generator.email", "trashmail.com"
+];
 
 const channelImages = {
   "general": "general.png",
@@ -52,9 +93,7 @@ const channelImages = {
 // ==========================================
 const loginScreen = document.getElementById('login-screen');
 const chatScreen = document.getElementById('chat-screen');
-const loginBtn = document.getElementById('login-btn');
-const usernameInput = document.getElementById('username-input');
-const passwordInput = document.getElementById('password-input');
+const googleLoginBtn = document.getElementById('google-login-btn');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const messagesContainer = document.getElementById('messages');
@@ -85,9 +124,6 @@ const emojiPickerWrapper = document.getElementById('emoji-picker-wrapper');
 const emojiPicker = document.querySelector('emoji-picker');
 let targetReactionMessageId = null; 
 let targetReactionCollection = null; 
-
-let recentMessages = [];
-let isSpamBlocked = false;
 
 // ==========================================
 // 🎨 THEME & SETTINGS
@@ -131,8 +167,15 @@ muteBtn.addEventListener('click', () => {
   updateMuteUI();
 });
 
-settingsOpenBtn.addEventListener('click', () => {
+settingsOpenBtn.addEventListener('click', async () => {
   displayNameInput.value = currentDisplayName; 
+  
+  // Get latest user data to show correct preview
+  const userSnap = await getDoc(doc(db, "users", currentUser));
+  if (userSnap.exists()) {
+    settingsAvatarPreview.src = userSnap.data().photoURL || auth.currentUser.photoURL || "https://via.placeholder.com/40";
+  }
+  pendingPfpUrl = ""; // Reset pending uploads
   settingsOverlay.classList.add('active');
 });
 closeSettingsBtn.addEventListener('click', () => settingsOverlay.classList.remove('active'));
@@ -141,10 +184,8 @@ saveSettingsBtn.addEventListener('click', async () => {
   const newAccent = accentColorInput.value;
   const newText = textColorInput.value;
   const newFont = fontInput.value;
-  
   const newName = displayNameInput.value.trim() || currentUser;
 
-  // Security Verification: Block stealing or cloning existing display names
   if (newName !== currentDisplayName) {
     const nameClaimed = await isDisplayNameTaken(newName, currentUser);
     if (nameClaimed) {
@@ -164,7 +205,14 @@ saveSettingsBtn.addEventListener('click', async () => {
   currentDisplayName = newName;
   
   try {
-    await setDoc(doc(db, "users", currentUser), { displayName: newName }, { merge: true });
+    const updates = { displayName: newName };
+    if (pendingPfpUrl) {
+      updates.photoURL = pendingPfpUrl;
+      // Also sync top right UI avatar
+      userAvatar.src = pendingPfpUrl;
+    }
+    
+    await setDoc(doc(db, "users", currentUser), updates, { merge: true });
     updateHeaderUI();
   } catch (error) { console.error(error); }
   settingsOverlay.classList.remove('active');
@@ -250,82 +298,140 @@ async function isDisplayNameTaken(targetName, excludeUsername = "") {
 }
 
 // ==========================================
-// 🔑 AUTHENTICATION & PRESENCE
+// 🔑 AUTHENTICATION & LAZY-LOADED PERSISTENCE (Google Auth)
 // ==========================================
-loginBtn.addEventListener('click', async () => {
-  const name = usernameInput.value.trim();
-  const password = passwordInput.value.trim();
 
-  if (name && password) {
-    loginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`; 
-    try {
-      const userRef = doc(db, "users", name);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        
-        if (!userData.password) {
-          await setDoc(userRef, { password: password }, { merge: true });
-          currentDisplayName = userData.displayName || name;
-        } 
-        else if (userData.password !== password) {
-          alert("❌ Incorrect password for this user!");
-          loginBtn.innerText = "join Chat";
-          return;
-        } else {
-          currentDisplayName = userData.displayName || name;
-        }
-      } else {
-        // Prevent registration with username that matches someone else's display name
-        const nameClaimed = await isDisplayNameTaken(name);
-        if (nameClaimed) {
-          alert("❌ That display name/username is already taken!");
-          loginBtn.innerText = "join Chat";
-          return;
-        }
+// 1. PERSISTENCE OBSERVER: Automatically logs users back in on load safely
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user.uid;
+    currentEmail = user.email;
 
-        currentDisplayName = name;
-        await setDoc(userRef, { username: name, password: password, displayName: name, joinedAt: serverTimestamp() });
-      }
+    const userRef = doc(db, "users", currentUser);
+    const userSnap = await getDoc(userRef);
 
-      await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
-      currentUser = name;
-      enterChatApp();
-      
-    } catch (error) {
-      alert("Database error.");
-      loginBtn.innerText = "join Chat";
+    if (userSnap.exists()) {
+      // User already exists in DB, fetch details and go straight to chat
+      currentDisplayName = userSnap.data().displayName || "Yapper";
+      const photoURL = user.photoURL || "";
+      enterChatApp(photoURL); // Trigger queries and active listeners ONLY here
+    } else {
+      // If the user signed in but didn't finish setting up their username, sign them out
+      await signOut(auth);
+      resetLoginButton();
     }
   } else {
-    alert("Please enter both username and password.");
+    // No user is signed in, strictly kill active listeners to stop background operations
+    killAllListeners();
+    loginScreen.classList.add('active');
+    chatScreen.classList.remove('active');
   }
 });
 
-function enterChatApp() {
+// 2. Google Login Button Click
+googleLoginBtn.addEventListener('click', async () => {
+  const rawUsername = customUsernameInput.value.trim().toLowerCase().replace(/\s+/g, '');
+  
+  googleLoginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...`; 
+  
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    const emailDomain = user.email.split('@')[1].toLowerCase();
+
+    // STRICT DETECT: Temp/Disposable Domain Block
+    if (TEMP_EMAIL_DOMAINS.includes(emailDomain)) {
+      alert("❌ Temporary email addresses are not permitted on YappApp!");
+      await signOut(auth);
+      resetLoginButton();
+      return;
+    }
+
+    currentUser = user.uid;
+    currentEmail = user.email;
+
+    const userRef = doc(db, "users", currentUser);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      // Returning user: onAuthStateChanged handles the transition
+      currentDisplayName = userSnap.data().displayName || "Yapper";
+    } else {
+      // New User Setup: They MUST provide a valid username in the HTML box
+      if (!rawUsername || rawUsername.length < 3) {
+        alert("❌ New users must choose a username (at least 3 characters long) before signing in!");
+        await signOut(auth);
+        resetLoginButton();
+        return;
+      }
+
+      googleLoginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Checking username...`;
+      
+      const usernameTaken = await isUsernameTaken(rawUsername);
+      if (usernameTaken) {
+        alert("❌ That username is already taken! Please pick a different one in the box.");
+        await signOut(auth);
+        resetLoginButton();
+        return;
+      }
+
+      // Save their new custom username and setup their profile
+      currentDisplayName = rawUsername;
+      await setDoc(userRef, {
+        username: rawUsername,
+        email: currentEmail,
+        displayName: rawUsername,
+        joinedAt: serverTimestamp()
+      });
+
+      await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+    }
+
+  } catch (error) {
+    console.error(error);
+    alert("Google Sign-In Failed.");
+    resetLoginButton();
+  }
+});
+
+// 3. Enter Chat App (Initializes active listeners strictly upon successful authentication)
+function enterChatApp(photoURL = "") {
   loginScreen.classList.remove('active');
   chatScreen.classList.add('active');
   loginSessionTime = Date.now();
   
-  // Real-time listener: Check if account gets deleted. Force-kick if missing.
+  // Update top right header with Google Profile Info
+  userProfileName.innerText = `@${currentDisplayName}`;
+  if (photoURL) {
+    userAvatar.src = photoURL;
+    userAvatar.style.display = "block";
+  } else {
+    userAvatar.style.display = "none";
+  }
+  
+  // Clean up any dangling listeners before executing new queries
+  killAllListeners();
+
+  // Active user presence observer
   unsubscribeUserCheck = onSnapshot(doc(db, "users", currentUser), (docSnap) => {
     if (!docSnap.exists()) {
       alert("⚠️ Your account has been deleted! Logging out...");
-      if (unsubscribeUserCheck) unsubscribeUserCheck();
-      window.location.reload();
+      signOut(auth).then(() => { window.location.reload(); });
     }
   });
 
-  addDoc(collection(db, "global_messages"), {
-    channel: "general", type: "system", text: `<i class="fa-solid fa-arrow-right-to-bracket"></i> <strong>${currentDisplayName}</strong> joined the server!`,
-    sender: currentUser, createdAt: serverTimestamp()
-  });
-
+  // Load sidebar and default chat space
   loadUsersSidebar();
   switchChat('global', 'general'); 
 
-  // BACKGROUND LISTENER: Global Channels Badges
-  onSnapshot(collection(db, "global_messages"), (snapshot) => {
+  // LAZY BACKGROUND BADGE LISTENERS: Tracks changes dynamically with strict query limit boundaries
+  const backgroundGlobalQuery = query(
+    collection(db, "global_messages"), 
+    orderBy("createdAt", "desc"), 
+    limit(5)
+  );
+  
+  unsubscribeBgGlobal = onSnapshot(backgroundGlobalQuery, (snapshot) => {
      snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
            const data = change.doc.data();
@@ -337,9 +443,14 @@ function enterChatApp() {
      });
   });
 
-  // BACKGROUND LISTENER: Direct Messages Badges
-  const dmQuery = query(collection(db, "private_messages"), where("receiver", "==", currentUser));
-  onSnapshot(dmQuery, (snapshot) => {
+  const dmQuery = query(
+    collection(db, "private_messages"), 
+    where("receiver", "==", currentUser), 
+    orderBy("createdAt", "desc"), 
+    limit(5)
+  );
+  
+  unsubscribeBgDM = onSnapshot(dmQuery, (snapshot) => {
      snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
            const data = change.doc.data();
@@ -350,18 +461,31 @@ function enterChatApp() {
         }
      });
   });
+
+  addDoc(collection(db, "global_messages"), {
+    channel: "general", type: "system", text: `<i class="fa-solid fa-arrow-right-to-bracket"></i> <strong>${currentDisplayName}</strong> joined the server!`,
+    sender: currentUser, createdAt: serverTimestamp()
+  });
 }
 
-window.addEventListener('beforeunload', () => {
-  if (currentUser) {
-    if (unsubscribeUserCheck) unsubscribeUserCheck();
+// 4. Teardown utility to cancel all open listeners to save query quotas
+function killAllListeners() {
+  if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
+  if (unsubscribeUserCheck) { unsubscribeUserCheck(); unsubscribeUserCheck = null; }
+  if (unsubscribeSidebar) { unsubscribeSidebar(); unsubscribeSidebar = null; }
+  if (unsubscribeBgGlobal) { unsubscribeBgGlobal(); unsubscribeBgGlobal = null; }
+  if (unsubscribeBgDM) { unsubscribeBgDM(); unsubscribeBgDM = null; }
+}
 
-    addDoc(collection(db, "global_messages"), {
-      channel: "general", type: "system", text: `<i class="fa-solid fa-arrow-right-from-bracket"></i> <strong>${currentDisplayName}</strong> disconnected.`,
-      sender: currentUser, createdAt: serverTimestamp()
-    });
-  }
-});
+function resetLoginButton() {
+  googleLoginBtn.innerHTML = `<i class="fa-brands fa-google"></i> Sign in with Google`;
+}
+
+async function isUsernameTaken(targetUsername) {
+  const q = query(collection(db, "users"), where("username", "==", targetUsername));
+  const querySnapshot = await getDocs(q);
+  return !querySnapshot.empty;
+}
 
 // ==========================================
 // 🚨 NOTIFICATIONS & BADGES
@@ -394,7 +518,7 @@ function clearUnreadBadge(channelId) {
 // ==========================================
 function loadUsersSidebar() {
   const q = query(collection(db, "users"), orderBy("username", "asc"));
-  onSnapshot(q, (snapshot) => {
+  unsubscribeSidebar = onSnapshot(q, (snapshot) => {
     userList.innerHTML = ''; 
     snapshot.forEach((docSnap) => {
       const user = docSnap.data();
@@ -468,65 +592,188 @@ function switchChat(type, target) {
   
   if (unsubscribeChat) unsubscribeChat();
 
-  let q;
+  oldestLoadedDoc = null;
+  hasMoreMessages = true;
+  isFirstPageLoaded = false;
+
   const collectionName = type === 'global' ? "global_messages" : "private_messages";
-  if (type === 'global') q = query(collection(db, collectionName), where("channel", "==", target), orderBy("createdAt", "asc"));
-  else {
-    const chatId = [currentUser, target].sort().join('_');
-    q = query(collection(db, collectionName), where("chatId", "==", chatId), orderBy("createdAt", "asc"));
-  }
   
-  let initialLoad = true;
+  let q;
+  if (type === 'global') {
+    q = query(
+      collection(db, collectionName), 
+      where("channel", "==", target), 
+      orderBy("createdAt", "desc"), 
+      limit(MESSAGES_PER_PAGE)
+    );
+  } else {
+    const chatId = [currentUser, target].sort().join('_');
+    q = query(
+      collection(db, collectionName), 
+      where("chatId", "==", chatId), 
+      orderBy("createdAt", "desc"), 
+      limit(MESSAGES_PER_PAGE)
+    );
+  }
 
   unsubscribeChat = onSnapshot(q, (snapshot) => {
-    messagesContainer.innerHTML = ''; 
-    let newMessagesCount = 0;
-    let hasPing = false;
+    const docsArray = [];
+    snapshot.forEach(docSnap => {
+      docsArray.push({ id: docSnap.id, ref: docSnap, data: docSnap.data() });
+    });
 
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'added' && !initialLoad) {
-        const data = change.doc.data();
-        if (data.sender !== currentUser && data.type !== 'system') {
-          newMessagesCount++;
-          if (data.text && (data.text.includes(`@${currentUser}`) || data.text.includes(`@${currentDisplayName}`))) {
-            hasPing = true;
-          }
+    docsArray.reverse();
+
+    if (docsArray.length > 0) {
+      oldestLoadedDoc = docsArray[0].ref; 
+      hasMoreMessages = docsArray.length >= MESSAGES_PER_PAGE;
+    } else {
+      hasMoreMessages = false;
+    }
+
+    messagesContainer.innerHTML = '';
+    renderLoadMoreButton(collectionName);
+
+    let hasPing = false;
+    let newMessagesCount = 0;
+
+    docsArray.forEach(item => {
+      displayMessage(item.data, item.id, collectionName);
+      if (isFirstPageLoaded && item.data.sender !== currentUser && item.data.type !== 'system') {
+        newMessagesCount++;
+        if (item.data.text && (item.data.text.includes(`@${currentUser}`) || item.data.text.includes(`@${currentDisplayName}`))) {
+          hasPing = true;
         }
       }
     });
 
-    snapshot.forEach((docSnap) => {
-      displayMessage(docSnap.data(), docSnap.id, collectionName);
-    });
-    
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    if (!initialLoad && !mutedChannels.includes(currentChatTarget)) {
+    if (isFirstPageLoaded && !mutedChannels.includes(currentChatTarget)) {
       if (hasPing) {
         pingSound.currentTime = 0; 
         pingSound.play().catch(()=>{});
-      }
-      else if (newMessagesCount > 0) {
+      } else if (newMessagesCount > 0) {
         notifSound.currentTime = 0; 
         notifSound.play().catch(()=>{});
       }
     }
-    initialLoad = false;
+    isFirstPageLoaded = true;
   });
 }
 
-function displayMessage(data, docId, collectionName) {
+async function loadMorePreviousMessages(collectionName) {
+  if (!oldestLoadedDoc || !hasMoreMessages) return;
+
+  const loadBtn = document.getElementById('load-more-btn');
+  if (loadBtn) {
+    loadBtn.disabled = true;
+    loadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+  }
+
+  let q;
+  if (currentChatType === 'global') {
+    q = query(
+      collection(db, collectionName),
+      where("channel", "==", currentChatTarget),
+      orderBy("createdAt", "desc"),
+      startAfter(oldestLoadedDoc),
+      limit(MESSAGES_PER_PAGE)
+    );
+  } else {
+    const chatId = [currentUser, currentChatTarget].sort().join('_');
+    q = query(
+      collection(db, collectionName),
+      where("chatId", "==", chatId),
+      orderBy("createdAt", "desc"),
+      startAfter(oldestLoadedDoc),
+      limit(MESSAGES_PER_PAGE)
+    );
+  }
+
+  try {
+    const snapshot = await getDocs(q);
+    const docsArray = [];
+    snapshot.forEach(docSnap => {
+      docsArray.push({ id: docSnap.id, ref: docSnap, data: docSnap.data() });
+    });
+
+    if (docsArray.length > 0) {
+      oldestLoadedDoc = docsArray[docsArray.length - 1].ref; 
+      hasMoreMessages = docsArray.length >= MESSAGES_PER_PAGE;
+    } else {
+      hasMoreMessages = false;
+    }
+
+    const previousScrollHeight = messagesContainer.scrollHeight;
+
+    const existingBtn = document.getElementById('load-more-btn');
+    if (existingBtn) existingBtn.remove();
+
+    renderLoadMoreButton(collectionName);
+
+    docsArray.forEach(item => {
+      displayMessage(item.data, item.id, collectionName, true); 
+    });
+
+    messagesContainer.scrollTop = messagesContainer.scrollHeight - previousScrollHeight;
+
+  } catch (err) {
+    console.error("Error loading more messages: ", err);
+  }
+}
+
+function renderLoadMoreButton(collectionName) {
+  if (!hasMoreMessages) return;
+
+  const btn = document.createElement('button');
+  btn.id = 'load-more-btn';
+  btn.style.cssText = `
+    width: 90%;
+    margin: 15px auto;
+    padding: 10px;
+    background: var(--darker-bg);
+    color: var(--golden);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    display: block;
+    transition: 0.2s;
+    text-align: center;
+  `;
+  btn.innerHTML = '<i class="fa-solid fa-clock-rotate-left" style="margin-right:8px;"></i> Load Older Messages';
+  btn.addEventListener('mouseenter', () => { btn.style.borderColor = 'var(--golden)'; });
+  btn.addEventListener('mouseleave', () => { btn.style.borderColor = 'var(--border)'; });
+
+  btn.addEventListener('click', () => loadMorePreviousMessages(collectionName));
+
+  messagesContainer.insertBefore(btn, messagesContainer.firstChild);
+}
+
+function displayMessage(data, docId, collectionName, prepend = false) {
   if (data.type === 'system') {
     const sysDiv = document.createElement('div');
     sysDiv.classList.add('system-message');
     sysDiv.innerHTML = data.text;
-    messagesContainer.appendChild(sysDiv);
-    return;
+    if (prepend) {
+      const loadBtn = document.getElementById('load-more-btn');
+      if (loadBtn && loadBtn.nextSibling) {
+        messagesContainer.insertBefore(sysDiv, loadBtn.nextSibling);
+      } else {
+        messagesContainer.insertBefore(sysDiv, messagesContainer.firstChild);
+      }
+    } else {
+      messagesContainer.appendChild(sysDiv);
+    }
+    return sysDiv;
   }
 
   const isYours = data.sender === currentUser;
   const senderName = data.senderDisplayName || data.sender;
   const isPing = !isYours && data.text && (data.text.includes(`@${currentUser}`) || data.text.includes(`@${currentDisplayName}`));
+  const senderPhoto = data.senderPhotoURL || "https://via.placeholder.com/36"; 
   
   let timeString = "Sending...";
   if (data.createdAt) {
@@ -585,15 +832,23 @@ function displayMessage(data, docId, collectionName) {
   `;
 
   msgDiv.innerHTML = `
-    <div class="sender-row">
-      <span class="sender-name">${senderName}</span>
-      <span class="timestamp">${timeString}</span>
+    <div class="message-content-wrapper">
+      <div class="sender-row" style="${isYours ? 'margin-right: 48px;' : 'margin-left: 48px;'}">
+        <span class="sender-name">${senderName}</span>
+        <span class="timestamp">${timeString}</span>
+      </div>
+      <div class="message-bubble-wrapper">
+        <img src="${senderPhoto}" class="message-avatar" alt="avatar">
+        <div class="bubble ${isPing ? 'mentioned' : ''}">${quotedHtml}${contentHtml}</div>
+        ${actionBarHtml}
+      </div>
+      <div class="reactions-container" style="${isYours ? 'margin-right: 48px;' : 'margin-left: 48px;'}">
+        ${reactionsDisplayHtml}
+      </div>
     </div>
-    ${wrapperHtml}
   `;
   
   msgDiv.querySelector('.reply-btn').addEventListener('click', () => {
-    // Decrypt the text before setting it in the replyingTo object and the UI!
     const decryptedReplyText = data.type === 'image' ? "" : decryptText(data.text);
     
     replyingTo = { messageId: docId, senderName: senderName, text: data.text || "", type: data.type };
@@ -631,7 +886,18 @@ function displayMessage(data, docId, collectionName) {
     });
   }
 
-  messagesContainer.appendChild(msgDiv);
+  if (prepend) {
+    const loadBtn = document.getElementById('load-more-btn');
+    if (loadBtn && loadBtn.nextSibling) {
+      messagesContainer.insertBefore(msgDiv, loadBtn.nextSibling);
+    } else {
+      messagesContainer.insertBefore(msgDiv, messagesContainer.firstChild);
+    }
+  } else {
+    messagesContainer.appendChild(msgDiv);
+  }
+
+  return msgDiv;
 }
 
 async function sendPayloadToDatabase(textContent, imageUrlContent, payloadType) {
@@ -642,14 +908,23 @@ async function sendPayloadToDatabase(textContent, imageUrlContent, payloadType) 
     return;
   }
 
+  const userData = userCheck.data();
+  const senderPhoto = userData.photoURL || auth.currentUser.photoURL || "";
+
   let safeText = textContent;
   if (payloadType === "text" && textContent) {
     safeText = encryptText(textContent);
   }
 
   const payload = {
-    type: payloadType, text: safeText, imageUrl: imageUrlContent, sender: currentUser,
-    senderDisplayName: currentDisplayName, createdAt: serverTimestamp(), reactions: {}
+    type: payloadType, 
+    text: safeText, 
+    imageUrl: imageUrlContent, 
+    sender: currentUser,
+    senderDisplayName: currentDisplayName, 
+    senderPhotoURL: senderPhoto, 
+    createdAt: serverTimestamp(), 
+    reactions: {}
   };
 
   try {
@@ -733,6 +1008,9 @@ function loadBrainrotFeed() {
 
 loadBrainrotFeed();
 
+// ==========================================
+// 🚨 ANTI-SPAM LOGIC
+// ==========================================
 messageForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (isSpamBlocked) return;
@@ -740,29 +1018,95 @@ messageForm.addEventListener('submit', async (e) => {
   if (!text) return;
 
   const now = Date.now();
-  recentMessages = recentMessages.filter(time => now - time < 5000);
-  recentMessages.push(now);
 
-  if (recentMessages.length >= 5) {
+  recentMessageTimestamps = recentMessageTimestamps.filter(time => now - time < 5000);
+  recentMessageTimestamps.push(now);
+
+  if (text.toLowerCase() === lastSentMessageText.toLowerCase()) {
+    duplicateMessageCount++;
+  } else {
+    duplicateMessageCount = 1; 
+  }
+  lastSentMessageText = text;
+
+  let penalizeTime = 0;
+  let penaltyReason = "";
+
+  if (duplicateMessageCount >= 5) {
+    penalizeTime = 30000; 
+    penaltyReason = "stop repeating messages!";
+  } 
+  else if (recentMessageTimestamps.length >= 5) {
+    penalizeTime = 10000; 
+    penaltyReason = "slow down...";
+  }
+
+  if (penalizeTime > 0) {
     isSpamBlocked = true;
     const originalPlaceholder = messageInput.placeholder;
-    messageInput.disabled = true; document.getElementById('send-btn').disabled = true; attachBtn.style.pointerEvents = "none";
-    messageInput.value = ""; messageInput.placeholder = "wait 10 seconds...";
+    messageInput.disabled = true; 
+    document.getElementById('send-btn').disabled = true; 
+    attachBtn.style.pointerEvents = "none";
+    messageInput.value = ""; 
     
-    let timeLeft = 10;
+    let secondsLeft = penalizeTime / 1000;
+    messageInput.placeholder = `You're muted: ${penaltyReason} (${secondsLeft}s left)`;
+
     const jailTimer = setInterval(() => {
-      timeLeft--; if (timeLeft > 0) messageInput.placeholder = `wait ${timeLeft} seconds...`;
+      secondsLeft--; 
+      if (secondsLeft > 0) {
+        messageInput.placeholder = `You're muted: ${penaltyReason} (${secondsLeft}s left)`;
+      }
     }, 1000);
 
     setTimeout(() => {
-      clearInterval(jailTimer); isSpamBlocked = false; messageInput.disabled = false;
-      document.getElementById('send-btn').disabled = false; attachBtn.style.pointerEvents = "auto";
-      messageInput.placeholder = originalPlaceholder; recentMessages = []; 
-    }, 10000);
+      clearInterval(jailTimer); 
+      isSpamBlocked = false; 
+      messageInput.disabled = false;
+      document.getElementById('send-btn').disabled = false; 
+      attachBtn.style.pointerEvents = "auto";
+      messageInput.placeholder = originalPlaceholder; 
+      recentMessageTimestamps = []; 
+      duplicateMessageCount = 0;
+      lastSentMessageText = "";
+    }, penalizeTime);
     return; 
   }
+
   messageInput.value = ''; 
   sendPayloadToDatabase(text, null, "text");
+});
+
+// Open settings avatar upload
+uploadPfpBtn.addEventListener('click', () => pfpFileInput.click());
+
+pfpFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10485760) return alert("Avatar file must be under 10MB.");
+
+  uploadPfpBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading...`;
+  uploadPfpBtn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+    const data = await response.json();
+
+    if (data.success) {
+      pendingPfpUrl = data.data.url;
+      settingsAvatarPreview.src = pendingPfpUrl;
+    } else {
+      throw new Error(data.error.message);
+    }
+  } catch (err) {
+    alert("Profile picture upload failed.");
+  } finally {
+    uploadPfpBtn.innerHTML = `Choose Image`;
+    uploadPfpBtn.disabled = false;
+    pfpFileInput.value = "";
+  }
 });
 
 // ==========================================
@@ -789,7 +1133,6 @@ window.nukeAllMessages = async () => {
   const globalRef = collection(db, "global_messages");
   const privateRef = collection(db, "private_messages");
 
-  // --- OPTION 1: FULL WIPE ---
   if (choice === "1") {
     if (!confirm("⚠️ Are you ABSOLUTELY sure you want to delete EVERY message in the database?")) return;
     
@@ -801,15 +1144,12 @@ window.nukeAllMessages = async () => {
     
     alert("🔥 Database wiped successfully!");
   } 
-  
-  // --- OPTION 2: NUKE SPECIFIC CHANNEL ---
   else if (choice === "2") {
     const targetChannel = prompt("Enter the exact name of the channel to wipe (e.g. general, coding, gooning):")?.trim().toLowerCase();
     if (!targetChannel) return;
 
     if (!confirm(`⚠️ Delete all messages in #${targetChannel}?`)) return;
 
-    // Fetch and delete only messages in this global channel
     const q = query(globalRef, where("channel", "==", targetChannel));
     const querySnapshot = await getDocs(q);
     
@@ -821,15 +1161,12 @@ window.nukeAllMessages = async () => {
 
     alert(`🔥 Deleted ${count} messages from #${targetChannel}!`);
   } 
-  
-  // --- OPTION 3: NUKE SPECIFIC USER'S MESSAGES ---
   else if (choice === "3") {
     const targetUser = prompt("Enter the username of the person whose messages you want to delete:")?.trim();
     if (!targetUser) return;
 
     if (!confirm(`⚠️ Delete all messages sent by @${targetUser} across all channels and DMs?`)) return;
 
-    // 1. Delete their global channel messages
     const qGlobal = query(globalRef, where("sender", "==", targetUser));
     const globalSnap = await getDocs(qGlobal);
     let globalCount = 0;
@@ -838,7 +1175,6 @@ window.nukeAllMessages = async () => {
       globalCount++;
     });
 
-    // 2. Delete their private direct messages
     const qPrivate = query(privateRef, where("sender", "==", targetUser));
     const privateSnap = await getDocs(qPrivate);
     let privateCount = 0;
@@ -849,7 +1185,6 @@ window.nukeAllMessages = async () => {
 
     alert(`🔥 Deleted ${globalCount} global messages and ${privateCount} DMs sent by @${targetUser}!`);
   } 
-  
   else {
     alert("❌ Invalid option choice.");
   }
