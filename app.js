@@ -18,12 +18,17 @@ const db = getFirestore(app);
 
 const IMGBB_API_KEY = "54f9963d526d01ed942d9a92b00bf05f"; 
 
-// AUDIO ENGINE (Using local files as requested)
+// ==========================================
+// 🔊 AUDIO ENGINE 
+// ==========================================
 const notifSound = new Audio('./notif.mp3'); 
 const pingSound = new Audio('./notif.mp3');
 notifSound.volume = 0.5;
 pingSound.volume = 0.6;
 
+// ==========================================
+// 🧠 STATE MANAGEMENT
+// ==========================================
 let currentUser = "";
 let currentDisplayName = ""; 
 let currentChatType = "global"; 
@@ -32,7 +37,18 @@ let unsubscribeChat = null;
 let replyingTo = null; 
 
 let mutedChannels = JSON.parse(localStorage.getItem('yapp_muted_channels') || '[]');
+let unreadCounts = {};
+let loginSessionTime = 0; 
 
+const channelImages = {
+  "general": "general.png",
+  "coding": "hacker.png",
+  "gooning": "gooning.png"
+};
+
+// ==========================================
+// 🏗️ DOM ELEMENTS
+// ==========================================
 const loginScreen = document.getElementById('login-screen');
 const chatScreen = document.getElementById('chat-screen');
 const loginBtn = document.getElementById('login-btn');
@@ -72,16 +88,12 @@ let targetReactionCollection = null;
 let recentMessages = [];
 let isSpamBlocked = false;
 
+// ==========================================
+// 🎨 THEME & SETTINGS
+// ==========================================
 const DEFAULT_ACCENT = "#a3b3ff";
 const DEFAULT_TEXT = "#D4D4D4";
 const DEFAULT_FONT = "'Roboto Mono', monospace";
-// Map your channels to their specific images
-// Map your channels to their specific images
-const channelImages = {
-  "general": "general.png",
-  "coding": "hacker.png",
-  "gaming": "gaming.png"
-};
 
 function loadLocalSettings() {
   const savedAccent = localStorage.getItem('yapp_accent') || DEFAULT_ACCENT;
@@ -155,7 +167,9 @@ resetSettingsBtn.addEventListener('click', () => {
   settingsOverlay.classList.remove('active');
 });
 
-// Emoji Picker
+// ==========================================
+// 🎭 EMOJIS & UPLOADS
+// ==========================================
 emojiPicker.addEventListener('emoji-click', async (event) => {
   if (!targetReactionMessageId) return;
   const selectedEmoji = event.detail.unicode;
@@ -182,7 +196,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// File Upload
 attachBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -210,8 +223,9 @@ fileInput.addEventListener('change', async (e) => {
   }
 });
 
-// Login
-// Login
+// ==========================================
+// 🔑 AUTHENTICATION & PRESENCE
+// ==========================================
 loginBtn.addEventListener('click', async () => {
   const name = usernameInput.value.trim();
   const password = passwordInput.value.trim();
@@ -225,21 +239,18 @@ loginBtn.addEventListener('click', async () => {
       if (userSnap.exists()) {
         const userData = userSnap.data();
         
-        // 🚨 LEGACY ACCOUNT FIX: If they have no password on file, save this one!
         if (!userData.password) {
           await setDoc(userRef, { password: password }, { merge: true });
           currentDisplayName = userData.displayName || name;
         } 
-        // Otherwise, do the normal password check
         else if (userData.password !== password) {
-          alert("incorrect password for this user!");
+          alert("❌ Incorrect password for this user!");
           loginBtn.innerText = "join Chat";
           return;
         } else {
           currentDisplayName = userData.displayName || name;
         }
       } else {
-        // Completely new user registration
         currentDisplayName = name;
         await setDoc(userRef, { username: name, password: password, displayName: name, joinedAt: serverTimestamp() });
       }
@@ -253,13 +264,14 @@ loginBtn.addEventListener('click', async () => {
       loginBtn.innerText = "join Chat";
     }
   } else {
-    alert("please enter both username and password.");
+    alert("Please enter both username and password.");
   }
 });
 
 function enterChatApp() {
   loginScreen.classList.remove('active');
   chatScreen.classList.add('active');
+  loginSessionTime = Date.now();
   
   addDoc(collection(db, "global_messages"), {
     channel: "general", type: "system", text: `<i class="fa-solid fa-arrow-right-to-bracket"></i> <strong>${currentDisplayName}</strong> joined the server!`,
@@ -268,6 +280,33 @@ function enterChatApp() {
 
   loadUsersSidebar();
   switchChat('global', 'general'); 
+
+  // BACKGROUND LISTENER: Global Channels Badges
+  onSnapshot(collection(db, "global_messages"), (snapshot) => {
+     snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+           const data = change.doc.data();
+           const msgTime = data.createdAt ? (typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate().getTime() : new Date(data.createdAt).getTime()) : Date.now();
+           if (msgTime > loginSessionTime && data.sender !== currentUser && data.type !== 'system') {
+               addUnreadBadge(data.channel);
+           }
+        }
+     });
+  });
+
+  // BACKGROUND LISTENER: Direct Messages Badges
+  const dmQuery = query(collection(db, "private_messages"), where("receiver", "==", currentUser));
+  onSnapshot(dmQuery, (snapshot) => {
+     snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+           const data = change.doc.data();
+           const msgTime = data.createdAt ? (typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate().getTime() : new Date(data.createdAt).getTime()) : Date.now();
+           if (msgTime > loginSessionTime && data.sender !== currentUser) {
+               addUnreadBadge(data.sender);
+           }
+        }
+     });
+  });
 }
 
 window.addEventListener('beforeunload', () => {
@@ -279,6 +318,38 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
+// ==========================================
+// 🚨 NOTIFICATIONS & BADGES
+// ==========================================
+function addUnreadBadge(channelId) {
+  if (currentChatTarget === channelId) return; 
+  
+  unreadCounts[channelId] = (unreadCounts[channelId] || 0) + 1;
+  const count = unreadCounts[channelId];
+  const badge = document.getElementById(`badge-${channelId}`);
+  
+  if (badge) {
+    // Determine the image name based on the count (cap at 10plus.png)
+    let imgName = count > 10 ? '10plus.png' : `${count}.png`;
+    
+    // Inject the image into the badge directly next to the name
+    badge.innerHTML = `<img src="${imgName}" alt="Unread">`;
+    badge.classList.add('active');
+  }
+}
+
+function clearUnreadBadge(channelId) {
+  unreadCounts[channelId] = 0;
+  const badge = document.getElementById(`badge-${channelId}`);
+  if (badge) {
+    badge.innerHTML = '';
+    badge.classList.remove('active');
+  }
+}
+
+// ==========================================
+// 💬 CHAT UI & LOGIC
+// ==========================================
 function loadUsersSidebar() {
   const q = query(collection(db, "users"), orderBy("username", "asc"));
   onSnapshot(q, (snapshot) => {
@@ -288,7 +359,13 @@ function loadUsersSidebar() {
       if (user.username !== currentUser) {
         const userEl = document.createElement('div');
         userEl.classList.add('channel');
-        userEl.innerHTML = `<i class="fa-solid fa-at" style="margin-right: 5px; opacity: 0.6;"></i>${user.displayName || user.username}`;
+        
+        // Includes the text and the badge span immediately following
+        userEl.innerHTML = `
+          <i class="fa-solid fa-at" style="opacity: 0.6;"></i> ${user.displayName || user.username}
+          <span class="notif-badge" id="badge-${user.username}"></span>
+        `;
+        
         userEl.addEventListener('click', () => {
           document.querySelectorAll('.channel').forEach(c => c.classList.remove('active'));
           userEl.classList.add('active');
@@ -312,11 +389,9 @@ async function updateHeaderUI() {
   updateMuteUI();
   
   if (currentChatType === 'global') {
-    // Look up the image from our dictionary, fallback to a default if it doesn't exist
     const imgSrc = channelImages[currentChatTarget] || "https://via.placeholder.com/20/ffffff/000000";
     currentChatTitle.innerHTML = `<img src="${imgSrc}" class="channel-img"> ${currentChatTarget}`;
   } else {
-    // Keep the @ icon for Direct Messages
     try {
       const targetSnap = await getDoc(doc(db, "users", currentChatTarget));
       if (targetSnap.exists()) {
@@ -339,6 +414,7 @@ function switchChat(type, target) {
   currentChatType = type;
   currentChatTarget = target;
   updateHeaderUI();
+  clearUnreadBadge(target); 
   
   replyingTo = null;
   replyBanner.style.display = 'none';
@@ -384,15 +460,12 @@ function switchChat(type, target) {
     
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // Fire audio engine if not muted
     if (!initialLoad && !mutedChannels.includes(currentChatTarget)) {
       if (hasPing) {
-        // Reset the ping sound to the absolute beginning instantly
         pingSound.currentTime = 0; 
         pingSound.play().catch(()=>{});
       }
       else if (newMessagesCount > 0) {
-        // Reset the pop sound to the absolute beginning instantly
         notifSound.currentTime = 0; 
         notifSound.play().catch(()=>{});
       }
