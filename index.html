@@ -1286,6 +1286,17 @@
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
       transition: transform 0.08s ease;
     }
+
+    #logout-btn {
+      background-color: var(--danger) !important;
+      color: #fff !important;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+
+    #logout-btn:hover {
+      opacity: 0.9;
+    }
   </style>
 
 </head>
@@ -1458,6 +1469,11 @@
 
   <button id="save-settings-btn">save changes</button>
   <button id="reset-settings-btn" class="btn-secondary" style="color: var(--golden) !important;">reset to default colors</button>
+
+  <button id="logout-btn" style="background-color: var(--danger); color: white; margin-top: 5px;">
+    <i class="fa-solid fa-right-from-bracket"></i> log out
+  </button>
+
   <button id="close-settings-btn" class="btn-secondary">cancel</button>
 </div>
 
