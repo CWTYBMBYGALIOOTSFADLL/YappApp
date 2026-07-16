@@ -4,8 +4,9 @@ import {
   serverTimestamp, doc, setDoc, where, getDocs, deleteDoc, getDoc, updateDoc,
   limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+// 🟢 Update this import block at the top of app.js
 import { 
-  getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged 
+  getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // 1. FIREBASE CONFIG
@@ -437,7 +438,8 @@ settingsOpenBtn.addEventListener('click', () => {
     settingsAvatarPreview.src = auth.currentUser.photoURL || DEFAULT_AVATAR;
   }
   
-  if (hideShortsCheckbox) hideShortsCheckbox.checked = hideShorts;
+  // 🟢 Synchronize the checkbox: Checked = Show, Unchecked = Hide (by default)
+  if (hideShortsCheckbox) hideShortsCheckbox.checked = showShorts;
   
   pendingPfpUrl = ""; 
   settingsOverlay.classList.add('active');
@@ -459,11 +461,13 @@ saveSettingsBtn.addEventListener('click', async () => {
     }
   }
 
-  if (hideShortsCheckbox) {
-    hideShorts = hideShortsCheckbox.checked;
-    localStorage.setItem('yapp_hide_shorts', hideShorts);
-    applyShortsVisibility();
-  }
+  // 🟢 Save dynamic checkbox state: Checked means visible, Unchecked means hidden
+  const shouldShowShorts = hideShortsCheckbox ? hideShortsCheckbox.checked : false;
+  showShorts = shouldShowShorts;
+  localStorage.setItem('yapp_show_shorts', shouldShowShorts);
+
+  // Apply immediately to current view
+  applyShortsVisibility();
 
   document.documentElement.style.setProperty('--golden', newAccent);
   document.documentElement.style.setProperty('--text-color', newText);
@@ -491,8 +495,8 @@ resetSettingsBtn.addEventListener('click', () => {
   localStorage.removeItem('yapp_accent');
   localStorage.removeItem('yapp_text');
   localStorage.removeItem('yapp_font');
-  localStorage.removeItem('yapp_hide_shorts');
-  hideShorts = false;
+  localStorage.removeItem('yapp_show_shorts');
+  showShorts = false; // Hidden by default
   loadLocalSettings(); 
   settingsOverlay.classList.remove('active');
 });
@@ -659,7 +663,7 @@ async function isDisplayNameTaken(targetName, excludeUsername = "") {
 }
 
 // ==========================================
-// 🔑 AUTHENTICATION & PERSISTENCE
+// 🔑 AUTHENTICATION & PERSISTENCE (With Redirect Fallback)
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
   if (user) {
@@ -689,7 +693,39 @@ onAuthStateChanged(auth, async (user) => {
         enterChatApp(photoURL);
         hideLoaderWhenFullyLoaded();
       } else {
-        console.log("Waiting for new user profile creation...");
+        // If a redirect user returned but doesn't have a profile doc yet:
+        const rawUsername = customUsernameInput.value.trim().toLowerCase().replace(/\s+/g, '');
+        if (!rawUsername || rawUsername.length < 3) {
+          alert("❌ Choose a username below and click login again to complete setup!");
+          await signOut(auth);
+          resetLoginButton();
+          loginLoader.classList.remove('active');
+          loginScreen.classList.add('active');
+          return;
+        }
+
+        const usernameTaken = await isUsernameTaken(rawUsername);
+        if (usernameTaken) {
+          alert("❌ That username is already taken! Pick a different one and log in again.");
+          await signOut(auth);
+          resetLoginButton();
+          loginLoader.classList.remove('active');
+          loginScreen.classList.add('active');
+          return;
+        }
+
+        currentDisplayName = rawUsername;
+        await setDoc(userRef, {
+          username: rawUsername,
+          email: currentEmail,
+          displayName: rawUsername,
+          joinedAt: serverTimestamp(),
+          status: "online",
+          lastLogin: serverTimestamp()
+        });
+
+        enterChatApp(user.photoURL || "");
+        hideLoaderWhenFullyLoaded();
       }
     } catch (error) {
       console.error("Failed to load user:", error);
