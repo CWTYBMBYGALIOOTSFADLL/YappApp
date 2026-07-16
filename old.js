@@ -1202,8 +1202,23 @@ function switchChat(type, target) {
   const collectionName = type === 'global' ? "global_messages" : "private_messages";
   
   let q;
-  if (type === 'global') q = query(collection(db, collectionName), where("channel", "==", target), orderBy("createdAt", "desc"), limit(MESSAGES_PER_PAGE));
-  else q = query(collection(db, collectionName), where("chatId", "==", [currentUser, target].sort().join('_')), orderBy("createdAt", "desc"), limit(MESSAGES_PER_PAGE));
+  if (type === 'global') {
+    q = query(
+      collection(db, collectionName), 
+      where("channel", "==", target), 
+      orderBy("createdAt", "desc"), 
+      limit(MESSAGES_PER_PAGE)
+    );
+  } else {
+    // 🟢 Filter by conversation participants to satisfy Security Rules
+    q = query(
+      collection(db, collectionName), 
+      where("chatId", "==", [currentUser, target].sort().join('_')), 
+      where("sender", "in", [currentUser, target]), // 🟢 Proves to Firestore rules you are allowed to read these
+      orderBy("createdAt", "desc"), 
+      limit(MESSAGES_PER_PAGE)
+    );
+  }
 
   unsubscribeChat = onSnapshot(q, (snapshot) => {
     const docsArray = [];
