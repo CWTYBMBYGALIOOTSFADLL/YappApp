@@ -1163,6 +1163,65 @@
     .message.image-message img:hover {
       transform: scale(1.02);
     }
+
+    /* ========================================== */
+    /* 🟢 DESKTOP DOWNLOAD BUTTON (TOP BAR CENTER)*/
+    /* ========================================== */
+
+    /* Ensure the top header distributes elements evenly to hold the center */
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Force left and right blocks to take equal space so the middle item stays dead-center */
+    #current-chat-title {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .chat-header > div:last-child {
+      flex: 1;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* The styled Windows download button */
+    .desktop-download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background-color: var(--dark-bg);
+      color: var(--text-color);
+      border: 1.5px solid var(--border);
+      border-radius: 50px;             /* Perfectly rounded sides */
+      padding: 8px 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      height: 38px;                    /* Centered perfectly inline with the profile badge */
+      transition: background-color 0.2s, border-color 0.2s;
+      user-select: none;
+    }
+
+    .desktop-download-btn i {
+      font-size: 1rem;
+      color: #0078d4;                 /* Clean Classic Windows Blue for the logo */
+    }
+
+    /* Simple hover with no glows or animations */
+    .desktop-download-btn:hover {
+      background-color: var(--button-bg);
+      border-color: var(--golden);
+    }
+
+    .desktop-download-btn:active {
+      opacity: 0.8;
+    }
   </style>
 
 </head>
@@ -1234,6 +1293,11 @@
 <main class="chat-area">
   <header class="chat-header">
     <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
+
+    <button id="desktop-download-btn" class="desktop-download-btn">
+      <i class="fa-brands fa-windows"></i>
+      <span>Download Desktop App</span>
+    </button>
 
     <div style="display: flex; align-items: center; gap: 15px;">
       <div id="call-btn" title="Start Call Session" style="display: block; cursor: pointer; font-size: 1.2rem; color: #2ecc71; transition: 0.2s; margin-right: 5px;">
