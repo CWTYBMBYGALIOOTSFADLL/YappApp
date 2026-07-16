@@ -748,15 +748,22 @@
       border-color: var(--golden);
     }
 
-    .message-form input {
+    /* AFTER */
+    .message-form textarea {
       flex: 1;
-      padding: 16px 20px;
+      padding: 14px 20px;
       border: 1.5px solid var(--border);
       border-radius: var(--radius-sm);
       font-size: 1rem;
       outline: none;
       background: var(--dark-bg);
       color: var(--text-color);
+      resize: none;               /* Hides the manual resize corner handle */
+      height: 50px;               /* Default starting height */
+      max-height: 150px;          /* Maximum height before showing scrollbar */
+      overflow-y: auto;           /* Scroll vertically if max-height is reached */
+      line-height: 1.4;
+      display: block;
     }
 
     .message-form button[type="submit"] {
@@ -1273,7 +1280,7 @@
     </div>
 
     <input type="file" id="file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp" multiple>
-    <input type="text" id="message-input" placeholder="type a message..." autocomplete="off">
+    <textarea id="message-input" placeholder="type a message..." autocomplete="off" rows="1"></textarea>
     <button type="submit" id="send-btn">send</button>
   </form>
 </main>
