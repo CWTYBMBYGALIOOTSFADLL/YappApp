@@ -739,70 +739,27 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+// 🟢 Replace your Google Login Button listener with this redirect method:
 googleLoginBtn.addEventListener('click', async () => {
   const rawUsername = customUsernameInput.value.trim().toLowerCase().replace(/\s+/g, '');
+  
+  // For new users: enforce filling out username first before redirecting away
+  const userDocs = await getDocs(query(collection(db, "users"), where("username", "==", rawUsername)));
+  
+  if (rawUsername && rawUsername.length >= 3 && !userDocs.empty) {
+    alert("❌ That username is already taken! Please pick a different one before signing in.");
+    return;
+  }
+
   const loaderText = document.querySelector('#login-loader h2');
-  if (loaderText) loaderText.innerText = "signing you in...";
+  if (loaderText) loaderText.innerText = "Redirecting to Google...";
 
   loginScreen.classList.remove('active');
   loginLoader.classList.add('active');
   
   try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    const emailDomain = user.email.split('@')[1].toLowerCase();
-
-    if (TEMP_EMAIL_DOMAINS.includes(emailDomain)) {
-      alert("❌ Temporary email addresses are not permitted on YappApp!");
-      await signOut(auth);
-      resetLoginButton();
-      loginLoader.classList.remove('active');
-      loginScreen.classList.add('active');
-      return;
-    }
-
-    currentUser = user.uid;
-    currentEmail = user.email;
-
-    const userRef = doc(db, "users", currentUser);
-    const userSnap = await getDoc(userRef);
-
-    if (userSnap.exists()) {
-      // Handled by auth listener
-    } else {
-      if (!rawUsername || rawUsername.length < 3) {
-        alert("❌ New users must choose a username (at least 3 characters long) before signing in!");
-        await signOut(auth);
-        resetLoginButton();
-        loginLoader.classList.remove('active');
-        loginScreen.classList.add('active');
-        return;
-      }
-      
-      const usernameTaken = await isUsernameTaken(rawUsername);
-      if (usernameTaken) {
-        alert("❌ That username is already taken! Please pick a different one.");
-        await signOut(auth);
-        resetLoginButton();
-        loginLoader.classList.remove('active');
-        loginScreen.classList.add('active');
-        return;
-      }
-
-      currentDisplayName = rawUsername;
-      await setDoc(userRef, {
-        username: rawUsername,
-        email: currentEmail,
-        displayName: rawUsername,
-        joinedAt: serverTimestamp(),
-        status: "online",
-        lastLogin: serverTimestamp()
-      });
-
-      enterChatApp(user.photoURL || "");
-      hideLoaderWhenFullyLoaded();
-    }
-
+    // This triggers a tab redirect instead of a popup box!
+    await signInWithRedirect(auth, provider);
   } catch (error) {
     alert("Google Sign-In Failed.");
     resetLoginButton();
