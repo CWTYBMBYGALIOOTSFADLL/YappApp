@@ -4,12 +4,10 @@ import {
   serverTimestamp, doc, setDoc, where, getDocs, deleteDoc, getDoc, updateDoc,
   limit, startAfter
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-// 🟢 Update this import block at the top of app.js
 import { 
   getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// 1. FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyB8pyL9d6X0j1D0vHLhi0lWNID9K8jpVnU",
   authDomain: "yappapp-8031b.firebaseapp.com",
@@ -19,18 +17,15 @@ const firebaseConfig = {
   appId: "1:221465604909:web:4fddfa24a0620986ab59a4"
 };
 
-// 2. INITIALIZE FIREBASE FIRST (Must happen before listeners run!)
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// 🛑 REALTIME EMERGENCY KILL SWITCH LISTENER
 onSnapshot(doc(db, "system", "config"), (docSnap) => {
   if (docSnap.exists() && docSnap.data().maintenanceMode === true) {
     const reason = docSnap.data().maintenanceReason || "";
 
-    // 1. Delete loaders and login interfaces entirely from the DOM
     const loginLoader = document.getElementById('login-loader');
     const loginScreen = document.getElementById('login-screen');
     const chatScreen = document.getElementById('chat-screen');
@@ -41,7 +36,6 @@ onSnapshot(doc(db, "system", "config"), (docSnap) => {
     if (chatScreen) chatScreen.remove();
     modalOverlays.forEach(overlay => overlay.remove());
 
-    // 2. Clear out the body and display the emergency shutdown layout
     document.body.innerHTML = `
       <div style="width: 100vw; height: 100vh; background: var(--dark-bg); position: fixed; top: 0; left: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
         <h1 style="
@@ -77,16 +71,10 @@ onSnapshot(doc(db, "system", "config"), (docSnap) => {
   }
 });
 
-
-
-// 4. CONFIG CONSTANTS
 const IMGBB_API_KEY = "54f9963d526d01ed942d9a92b00bf05f"; 
 const DEFAULT_AVATAR = "defaultuser.png";
 const DEFAULT_AVATAR_LARGE = "defaultuser.png";
 
-// ==========================================
-// 🔊 AUDIO ENGINE 
-// ==========================================
 const notifSound = new Audio('./notif.mp3'); 
 const pingSound = new Audio('./notif.mp3');
 notifSound.volume = 0.5;
@@ -104,9 +92,6 @@ beingCalledSound.loop = true;
 joinSound.volume = 0.5;
 endCallSound.volume = 0.5;
 
-// ==========================================
-// 🧠 STATE MANAGEMENT & LISTENERS
-// ==========================================
 let currentUser = ""; 
 let currentEmail = "";
 let currentDisplayName = ""; 
@@ -125,7 +110,7 @@ let unsubscribeSystem = null;
 let mutedChannels = JSON.parse(localStorage.getItem('yapp_muted_channels') || '[]');
 let unreadCounts = {};
 let loginSessionTime = 0; 
-let userSelectedStatus = "online"; // Tracks what they picked manually
+let userSelectedStatus = "online";
 
 const MESSAGES_PER_PAGE = 50;
 let oldestLoadedDoc = null; 
@@ -144,9 +129,6 @@ let userListCache = {};
 let isDoNotDisturb = localStorage.getItem('yapp_dnd') === 'true';
 let showShorts = localStorage.getItem('yapp_show_shorts') === 'true';
 
-// ==========================================
-// 📞 WEBRTC VOICE, VIDEO & SCREENSHARE STATE
-// ==========================================
 let localStream = null;
 let screenStream = null;
 let peerConnection = null;
@@ -157,23 +139,16 @@ let isCameraOn = true;
 let isMicOn = true;
 let isSharingScreen = false;
 
-// ==========================================
-// 🌐 BULLETPROOF CROSS-NETWORK WEBRTC CONFIG
-// ==========================================
 const rtcConfig = { 
   iceServers: [ 
-    // Standard STUN servers (Fastest, tries direct connection first)
     { urls: 'stun:stun.l.google.com:19302' }, 
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun.services.mozilla.com' },
-
-    // 📡 Standard Port 80 Relay (Bypasses home firewalls)
     { 
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
       credential: 'openrelayproject' 
     },
-    // 🔒 Secure Port 443 Relay (Bypasses strict school/work/mobile carrier blocks)
     { 
       urls: 'turn:openrelay.metered.ca:443',
       username: 'openrelayproject',
@@ -187,9 +162,6 @@ const rtcConfig = {
   ] 
 };
 
-// ==========================================
-// 🏗️ DOM ELEMENTS
-// ==========================================
 const loginScreen = document.getElementById('login-screen');
 const chatScreen = document.getElementById('chat-screen');
 const googleLoginBtn = document.getElementById('google-login-btn');
@@ -264,30 +236,18 @@ const DEFAULT_ACCENT = "#a3b3ff";
 const DEFAULT_TEXT = "#D4D4D4";
 const DEFAULT_FONT = "'Roboto Mono', monospace";
 
-// ==========================================
-// ⌨️ SPRINGY TYPING EFFECT
-// ==========================================
 if (messageInput) {
   messageInput.addEventListener('input', () => {
-    // Remove the class first so we can re-trigger the animation on consecutive keystrokes
     messageInput.classList.remove('bounce-typing');
-    
-    // Trigger a reflow to reset the CSS animation state
     void messageInput.offsetWidth; 
-    
-    // Add the class back to play the animation
     messageInput.classList.add('bounce-typing');
   });
 
-  // Optional: Clean up the class when the animation finishes so hover states work cleanly
   messageInput.addEventListener('animationend', () => {
     messageInput.classList.remove('bounce-typing');
   });
 }
 
-// ==========================================
-// 🎨 THEME & UI CONTROLS
-// ==========================================
 function loadLocalSettings() {
   const savedAccent = localStorage.getItem('yapp_accent') || DEFAULT_ACCENT;
   const savedText = localStorage.getItem('yapp_text') || DEFAULT_TEXT;
@@ -346,18 +306,15 @@ function applyShortsVisibility() {
   const leftPanel = document.getElementById('shorts-left');
   const rightPanel = document.getElementById('shorts-right');
   
-  if (hideShorts) {
-    if (leftPanel) leftPanel.style.display = 'none';
-    if (rightPanel) rightPanel.style.display = 'none';
-  } else {
+  if (showShorts) {
     if (leftPanel) leftPanel.style.display = 'flex';
     if (rightPanel) rightPanel.style.display = 'flex';
+  } else {
+    if (leftPanel) leftPanel.style.display = 'none';
+    if (rightPanel) rightPanel.style.display = 'none';
   }
 }
 
-// ==========================================
-// 💡 HEADER STATUS DROPDOWN & PRESENCE LOGIC
-// ==========================================
 function updateHeaderStatusDot(statusStr) {
   if (statusStr === "idle") {
     headerStatusDot.style.background = "#f1c40f";
@@ -401,9 +358,6 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
-// ==========================================
-// 💤 AUTO-IDLE DETECTION (60 Seconds)
-// ==========================================
 let idleTimer = null;
 let isCurrentlyIdle = false;
 
@@ -427,9 +381,6 @@ function resetIdleTimer() {
   document.addEventListener(evt, resetIdleTimer, true);
 });
 
-// ==========================================
-// ⚙️ SETTINGS OVERLAY LOGIC
-// ==========================================
 settingsOpenBtn.addEventListener('click', () => {
   displayNameInput.value = currentDisplayName; 
   if (cachedUserData) {
@@ -438,7 +389,6 @@ settingsOpenBtn.addEventListener('click', () => {
     settingsAvatarPreview.src = auth.currentUser.photoURL || DEFAULT_AVATAR;
   }
   
-  // 🟢 Synchronize the checkbox: Checked = Show, Unchecked = Hide (by default)
   if (hideShortsCheckbox) hideShortsCheckbox.checked = showShorts;
   
   pendingPfpUrl = ""; 
@@ -461,12 +411,10 @@ saveSettingsBtn.addEventListener('click', async () => {
     }
   }
 
-  // 🟢 Save dynamic checkbox state: Checked means visible, Unchecked means hidden
   const shouldShowShorts = hideShortsCheckbox ? hideShortsCheckbox.checked : false;
   showShorts = shouldShowShorts;
   localStorage.setItem('yapp_show_shorts', shouldShowShorts);
 
-  // Apply immediately to current view
   applyShortsVisibility();
 
   document.documentElement.style.setProperty('--golden', newAccent);
@@ -496,14 +444,11 @@ resetSettingsBtn.addEventListener('click', () => {
   localStorage.removeItem('yapp_text');
   localStorage.removeItem('yapp_font');
   localStorage.removeItem('yapp_show_shorts');
-  showShorts = false; // Hidden by default
+  showShorts = false; 
   loadLocalSettings(); 
   settingsOverlay.classList.remove('active');
 });
 
-// ==========================================
-// 🎨 PASTE LOGIC & MULTI-FILE Uploader
-// ==========================================
 async function processFilesForUpload(files) {
   if (files.length === 0) return;
 
@@ -593,9 +538,6 @@ messageInput.addEventListener('paste', async (e) => {
   }
 });
 
-// ==========================================
-// 📦 DRAG & DROP FILE LOGIC
-// ==========================================
 const dropZone = document.querySelector('.chat-area');
 
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -620,9 +562,6 @@ dropZone.addEventListener('drop', (e) => {
   if (files.length > 0) processFilesForUpload(files);
 });
 
-// ==========================================
-// 🎭 EMOJIS
-// ==========================================
 emojiPicker.addEventListener('emoji-click', async (event) => {
   if (!targetReactionMessageId) return;
   const selectedEmoji = event.detail.unicode;
@@ -649,9 +588,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ==========================================
-// 🛡️ NAME CLONING PREVENTION (Security)
-// ==========================================
 async function isDisplayNameTaken(targetName, excludeUsername = "") {
   const q = query(collection(db, "users"), where("displayName", "==", targetName));
   const querySnapshot = await getDocs(q);
@@ -662,9 +598,6 @@ async function isDisplayNameTaken(targetName, excludeUsername = "") {
   return taken;
 }
 
-// ==========================================
-// 🔑 AUTHENTICATION & PERSISTENCE (With Redirect Fallback)
-// ==========================================
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user.uid;
@@ -693,7 +626,6 @@ onAuthStateChanged(auth, async (user) => {
         enterChatApp(photoURL);
         hideLoaderWhenFullyLoaded();
       } else {
-        // If a redirect user returned but doesn't have a profile doc yet:
         const rawUsername = customUsernameInput.value.trim().toLowerCase().replace(/\s+/g, '');
         if (!rawUsername || rawUsername.length < 3) {
           alert("❌ Choose a username below and click login again to complete setup!");
@@ -739,11 +671,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// 🟢 Replace your Google Login Button listener with this redirect method:
 googleLoginBtn.addEventListener('click', async () => {
   const rawUsername = customUsernameInput.value.trim().toLowerCase().replace(/\s+/g, '');
   
-  // For new users: enforce filling out username first before redirecting away
   const userDocs = await getDocs(query(collection(db, "users"), where("username", "==", rawUsername)));
   
   if (rawUsername && rawUsername.length >= 3 && !userDocs.empty) {
@@ -758,7 +688,6 @@ googleLoginBtn.addEventListener('click', async () => {
   loginLoader.classList.add('active');
   
   try {
-    // This triggers a tab redirect instead of a popup box!
     await signInWithRedirect(auth, provider);
   } catch (error) {
     alert("Google Sign-In Failed.");
@@ -818,9 +747,6 @@ function enterChatApp(photoURL = "") {
   loadUsersSidebar();
   switchChat('global', 'general'); 
 
-  // ========================================================
-  // ♻️ BACKGROUND LISTENER: Global Force Refresh
-  // ========================================================
   let isFirstConfigLoad = true;
 
   unsubscribeSystem = onSnapshot(doc(db, "system", "config"), (docSnap) => {
@@ -905,9 +831,6 @@ function killAllListeners() {
 
 function resetLoginButton() { googleLoginBtn.innerHTML = `<i class="fa-brands fa-google"></i> Sign in with Google`; }
 
-// ==========================================
-// 📞 WEBRTC VOICE, VIDEO & SCREENSHARE ENGINE
-// ==========================================
 function resetMediaStateFlags() {
   isCameraOn = true; isMicOn = true; isSharingScreen = false;
   toggleCamBtn.classList.add('active-state'); toggleCamBtn.innerHTML = '<i class="fa-solid fa-video"></i>';
@@ -941,7 +864,6 @@ callBtn.addEventListener('click', async () => {
 
     callingSound.currentTime = 0; callingSound.play().catch(() => {});
 
-    // --- THIS IS THE START OF THE MEDIA BLOCK ---
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     } catch (mediaErr) {
@@ -958,7 +880,6 @@ callBtn.addEventListener('click', async () => {
         return;
       }
     }
-    // --- THIS IS THE END OF THE MEDIA BLOCK ---
 
     localVideo.srcObject = localStream;
     
@@ -1042,7 +963,6 @@ acceptCallBtn.addEventListener('click', async () => {
     toggleCamBtn.style.display = "flex"; toggleMicBtn.style.display = "flex"; screenshareBtn.style.display = "flex"; 
     resetMediaStateFlags();
 
-    // --- THIS IS THE START OF THE MEDIA BLOCK (ADDED FALLBACK TO ANSWER PATH) ---
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     } catch (mediaErr) {
@@ -1059,7 +979,6 @@ acceptCallBtn.addEventListener('click', async () => {
         return;
       }
     }
-    // --- THIS IS THE END OF THE MEDIA BLOCK ---
 
     localVideo.srcObject = localStream;
     peerConnection = new RTCPeerConnection(rtcConfig);
@@ -1197,9 +1116,6 @@ async function stopScreenShare() {
   } catch (err) {}
 }
 
-// ==========================================
-// 🚨 NOTIFICATIONS & CHAT UI
-// ==========================================
 function addUnreadBadge(channelId) {
   if (currentChatTarget === channelId) return; 
   unreadCounts[channelId] = (unreadCounts[channelId] || 0) + 1;
@@ -1390,7 +1306,7 @@ function displayMessage(data, docId, collectionName, prepend = false) {
   const msgDiv = document.createElement('div');
   msgDiv.classList.add('message'); 
   if (isYours) msgDiv.classList.add('yours');
-  if (data.type === 'image') msgDiv.classList.add('image-message'); // 🟢 Added this line!
+  if (data.type === 'image') msgDiv.classList.add('image-message');
   
   let quotedHtml = "";
   if (data.replyTo) {
@@ -1505,7 +1421,6 @@ function decryptText(ciphertext) {
   try { return CryptoJS.AES.decrypt(ciphertext, "YAPPMASTER!.!").toString(CryptoJS.enc.Utf8) || "[Encrypted Message!!]"; } catch (err) { return "[Encrypted Message!!]"; }
 }
 
-// Brainrot feed logic
 const brainrotLinks = [ "https://www.youtube.com/shorts/UEYUozZ0Jtw", "https://www.youtube.com/shorts/8MJrB_ZhLWg", "https://www.youtube.com/shorts/zW7z4w118QU", "https://www.youtube.com/shorts/utmdQfyaAO0", "https://www.youtube.com/shorts/kksKRA5_To8", "https://www.youtube.com/shorts/N70unL6_UU8", "https://www.youtube.com/shorts/iczoCkbrO9k", "https://www.youtube.com/shorts/__3mSAgclmk", "https://www.youtube.com/shorts/mmUUsE3NfcM" ];
 function extractYouTubeID(url) {
   if (url.length === 11) return url; 
@@ -1528,16 +1443,14 @@ loadBrainrotFeed();
 messageForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   
-  // 🟢 Trigger the springy bounce animation on the submit button
   const submitBtn = messageForm.querySelector('button[type="submit"]');
   if (submitBtn) {
     submitBtn.classList.add('active-click');
-    setTimeout(() => submitBtn.classList.remove('active-click'), 150); // Matches the bounce return
+    setTimeout(() => submitBtn.classList.remove('active-click'), 150);
   }
 
   if (isSpamBlocked) return;
   const text = messageInput.value.trim(); if (!text) return;
-  // ... rest of your sending code
 
   const now = Date.now();
   recentMessageTimestamps = recentMessageTimestamps.filter(time => now - time < 5000);
@@ -1606,9 +1519,6 @@ function hideLoaderWhenFullyLoaded() {
   if (document.readyState === 'complete') performHide(); else window.addEventListener('load', performHide);
 }
 
-// ==========================================
-// 🔍 INTERACTIVE IMAGE VIEWER (ZOOM & PAN)
-// ==========================================
 const viewerOverlay = document.getElementById('image-viewer-overlay');
 const viewerImg = document.getElementById('viewer-img');
 const viewerContainer = document.getElementById('viewer-container');
@@ -1619,13 +1529,11 @@ let isPanning = false;
 let startX = 0, startY = 0;
 let panX = 0, panY = 0;
 
-// Open Image Viewer when clicking any chat image
 document.addEventListener('click', (e) => {
   if (e.target.closest('.message.image-message img') || e.target.closest('.quoted-reply img')) {
     const clickedImgSrc = e.target.src;
     viewerImg.src = clickedImgSrc;
     
-    // Reset positions
     zoomScale = 1;
     panX = 0;
     panY = 0;
@@ -1635,7 +1543,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Close Image Viewer
 const closeViewer = () => {
   viewerOverlay.style.display = 'none';
 };
@@ -1644,24 +1551,21 @@ viewerOverlay.addEventListener('click', (e) => {
   if (e.target === viewerOverlay) closeViewer();
 });
 
-// Update CSS Transforms for Zoom/Pan
 function updateViewerTransform() {
   viewerContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
 }
 
-// 🎡 Zoom logic via Mouse Wheel
 viewerOverlay.addEventListener('wheel', (e) => {
   e.preventDefault();
   const zoomIntensity = 0.1;
   if (e.deltaY < 0) {
-    zoomScale = Math.min(zoomScale + zoomIntensity, 5); // Max zoom 5x
+    zoomScale = Math.min(zoomScale + zoomIntensity, 5);
   } else {
-    zoomScale = Math.max(zoomScale - zoomIntensity, 0.5); // Min zoom 0.5x
+    zoomScale = Math.max(zoomScale - zoomIntensity, 0.5);
   }
   updateViewerTransform();
 }, { passive: false });
 
-// 🖱️ Pan Logic via Click and Drag
 viewerOverlay.addEventListener('mousedown', (e) => {
   if (e.target === closeViewerBtn || e.target.closest('#close-viewer')) return;
   isPanning = true;
