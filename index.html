@@ -1160,6 +1160,34 @@
       border: none !important;
     }
 
+    /* 🟢 FIXED: Clean, visible quoted reply banners for both parties */
+    .quoted-reply {
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--golden);
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #b0b0b0;
+      opacity: 0.9;
+    }
+
+    /* Style overrides for YOUR bubbles so the text is highly readable */
+    .message.yours .quoted-reply {
+      border-left: 3px solid var(--darker-bg);
+      background: rgba(0, 0, 0, 0.08);
+      color: rgba(24, 24, 24, 0.7); /* Readable dark text on golden bubble */
+    }
+    
+    .message.yours .quoted-reply strong {
+      color: var(--darker-bg);
+      font-weight: 600;
+    }
+
     .message.image-message img:hover {
       transform: scale(1.02);
     }
