@@ -1258,14 +1258,16 @@ function loadUsersSidebar() {
     userList.innerHTML = ''; 
     userListCache = {};
     
+    // Locate this section inside your loadUsersSidebar getDocs loop:
     snapshot.forEach((docSnap) => {
       const user = docSnap.data();
       const userId = docSnap.id;
+      
+      // 🟢 CRITICAL PRESENCE CHECK:
+      // If the user's lastSeen timestamp is older than 45 seconds, they closed their app!
       let status = user.status || "online";
-
-      // 🟢 HEARTBEAT FALLBACK: If user crashed out without firing clean exit listeners,
-      // automatically mark them as offline if they've been inactive for over 5 minutes.
-      if (user.lastActive && (Date.now() - user.lastActive > 300000) && status !== "offline") {
+      const now = Date.now();
+      if (user.lastSeen && (now - user.lastSeen > 45000)) {
         status = "offline";
       }
       
@@ -2037,6 +2039,8 @@ async function appendLinkPreviews(text, containerElement) {
   }
 }
 
+let heartbeatInterval = null; // Add this variable at the top of your state variables section
+
 function resetPresenceTimers() {
   if (!currentUser) return;
 
@@ -2044,8 +2048,17 @@ function resetPresenceTimers() {
     currentPresenceState = "online";
     updateDoc(doc(db, "users", currentUser), { 
       status: userSelectedStatus,
-      lastActive: Date.now() // 🟢 Store active millisecond interval
+      lastSeen: Date.now() // 🟢 Log current time on interaction
     }).catch(()=>{});
+  }
+
+  // 🟢 Start a heartbeat ping that updates the database every 20 seconds while active
+  if (!heartbeatInterval) {
+    heartbeatInterval = setInterval(() => {
+      if (currentPresenceState === "online" && currentUser) {
+        updateDoc(doc(db, "users", currentUser), { lastSeen: Date.now() }).catch(()=>{});
+      }
+    }, 20000);
   }
 
   if (idleTimer) clearTimeout(idleTimer);
@@ -2058,6 +2071,7 @@ function resetPresenceTimers() {
 
   offlineTimer = setTimeout(() => {
     currentPresenceState = "offline";
+    if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
     updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
   }, 3600000);
 }
