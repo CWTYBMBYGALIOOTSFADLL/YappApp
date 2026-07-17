@@ -199,7 +199,7 @@
       display: flex;
       flex-direction: column;
       background-color: var(--darker-bg);
-      transition: margin-left 0.3s ease, transform 0.3s ease;
+      transition: margin-left 0.3s ease, transform 0.3s ease, left 0.3s ease;
     }
 
     .sidebar-header {
@@ -432,14 +432,13 @@
       padding: 24px;
       gap: 8px;
       overflow-y: auto;
-      overflow-x: hidden;  /* 🟢 ADD THIS */
+      overflow-x: hidden;
       background-color: #141414;
       scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
-      width: 100%;  /* 🟢 ADD THIS */
-      max-width: 100%;  /* 🟢 ADD THIS */
+      width: 100%;
+      max-width: 100%;
     }
-
     
     .message {
       display: flex;
@@ -447,11 +446,9 @@
       max-width: 75%;
       position: relative;
       margin-bottom: 2px;
-      word-break: break-word;  /* 🟢 ADD THIS */
-      word-wrap: break-word;  /* 🟢 ADD THIS */
+      word-break: break-word;
+      word-wrap: break-word;
     }
-
-
 
     .message.yours {
       align-self: flex-end;
@@ -1391,19 +1388,29 @@
       gap: 15px;
     }
 
-    .sidebar-toggle-btn {
-      background: none;
-      border: none;
-      color: var(--text-color);
-      font-size: 1.4rem;
+    /* 🟢 Floating positioning style rules for the toggle button inside message panel workspace container */
+    .sidebar-toggle-btn.message-space-toggle {
+      position: absolute;
+      top: 105px;
+      left: 24px;
+      z-index: 95;
+      background: var(--darker-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      width: 45px;
+      height: 45px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       cursor: pointer;
-      padding: 5px 10px;
-      display: block;
-      transition: color 0.2s;
+      color: var(--text-color);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: color 0.2s ease, border-color 0.2s ease;
     }
 
-    .sidebar-toggle-btn:hover {
+    .sidebar-toggle-btn.message-space-toggle:hover {
       color: var(--golden);
+      border-color: var(--golden);
     }
 
     .sidebar.active {
@@ -1411,129 +1418,134 @@
     }
 
     @media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: -100%;
-    width: 250px;
-    height: 100vh;
-    z-index: 999;
-    background: var(--darker-bg);
-    box-shadow: 5px 0 25px rgba(0,0,0,0.6);
-    transition: left 0.3s ease;
-  }
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 250px;
+        height: 100vh;
+        z-index: 999;
+        background: var(--darker-bg);
+        box-shadow: 5px 0 25px rgba(0,0,0,0.6);
+        transition: left 0.3s ease;
+      }
 
-  .sidebar.active {
-    left: 0;
-    margin-left: 0;
-  }
+      .sidebar.active {
+        left: 0;
+        margin-left: 0;
+      }
 
-  .sidebar-toggle-btn {
-    display: block !important;  /* 🟢 FORCE VISIBLE */
-    padding: 8px;
-    margin-right: 8px;
-  }
+      .sidebar-toggle-btn.message-space-toggle {
+        top: 80px;
+        left: 12px;
+        width: 38px;
+        height: 38px;
+        display: flex !important;
+      }
 
-  .chat-header {
-    padding: 10px 12px;
-    gap: 8px;
-    flex-wrap: nowrap;
-  }
+      .chat-header {
+        padding: 10px 12px;
+        gap: 8px;
+        flex-wrap: nowrap;
+      }
 
-  .header-left-cluster {
-    gap: 8px;
-    min-width: 0;  /* 🟢 ADD THIS */
-  }
+      .header-left-cluster {
+        gap: 8px;
+        min-width: 0;
+      }
 
-  #current-chat-title {
-    font-size: 0.95rem;
-    white-space: nowrap;  /* 🟢 ADD THIS */
-    overflow: hidden;  /* 🟢 ADD THIS */
-    text-overflow: ellipsis;  /* 🟢 ADD THIS */
-  }
+      #current-chat-title {
+        font-size: 0.95rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
-  .channel-img {
-    width: 20px;
-    height: 20px;
-    display: none;  /* 🟢 HIDE ON MOBILE */
-  }
+      .channel-img {
+        width: 20px;
+        height: 20px;
+        display: none;
+      }
 
-  .header-right-cluster {
-    gap: 8px;
-    margin-left: auto;
-  }
+      .header-right-cluster {
+        gap: 8px;
+        margin-left: auto;
+      }
 
-  .desktop-download-btn {
-    display: none !important;  /* 🟢 HIDE DOWNLOAD BTN */
-  }
+      .desktop-download-btn {
+        display: none !important;
+      }
 
-  .message-container {
-    padding: 12px 8px;
-    gap: 4px;
-    overflow-x: hidden;
-  }
+      .message-container {
+        padding: 12px 8px;
+        gap: 4px;
+        overflow-x: hidden;
+      }
 
-  .message {
-    max-width: 88%;  /* 🟢 REDUCE FROM 90% */
-    word-break: break-word;
-  }
+      .message {
+        max-width: 88%;
+        word-break: break-word;
+      }
 
-  .bubble {
-    font-size: 0.9rem;
-    padding: 10px 12px;
-    max-width: 100%;
-  }
+      .bubble {
+        font-size: 0.9rem;
+        padding: 10px 12px;
+        max-width: 100%;
+      }
 
-  .message-form {
-    padding: 10px 12px;
-    gap: 6px;
-  }
+      .message-form {
+        padding: 10px 12px;
+        gap: 6px;
+      }
 
-  #send-btn {
-    padding: 0 16px;
-    white-space: nowrap;
-  }
+      #send-btn {
+        padding: 0 16px;
+        white-space: nowrap;
+      }
 
-  .action-btn {
-    width: 38px;
-    height: 38px;
-    font-size: 0.9rem;
-    flex-shrink: 0;
-  }
-}
+      .action-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+      }
+    }
 
-@media (max-width: 480px) {
-  .sidebar-toggle-btn {
-    display: block !important;
-    font-size: 1.2rem;
-  }
+    @media (max-width: 480px) {
+      .sidebar-toggle-btn.message-space-toggle {
+        top: 72px;
+        left: 10px;
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+      }
 
-  .message {
-    max-width: 92%;
-  }
+      .message {
+        max-width: 92%;
+      }
 
-  .chat-header {
-    padding: 8px 10px;
-  }
+      .chat-header {
+        padding: 8px 10px;
+      }
 
-  #current-chat-title {
-    font-size: 0.85rem;
-  }
+      #current-chat-title {
+        font-size: 0.85rem;
+      }
 
-  .message-form {
-    padding: 8px 10px;
-  }
+      .message-form {
+        padding: 8px 10px;
+      }
 
-  .action-btn {
-    width: 36px;
-    height: 36px;
-  }
+      .action-btn {
+        width: 36px;
+        height: 36px;
+      }
 
-  #send-btn {
-    padding: 0 12px;
-    font-size: 0.85rem;
-  }
-}
+      #send-btn {
+        padding: 0 12px;
+        font-size: 0.85rem;
+      }
+    }
 
     @media (max-width: 480px) {
       .sidebar {
@@ -1675,9 +1687,6 @@
     <main class="chat-area">
       <header class="chat-header">
         <div class="header-left-cluster">
-          <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" title="Toggle Side Panel">
-            <i class="fa-solid fa-bars"></i>
-          </button>
           <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
         </div>
 
@@ -1713,6 +1722,10 @@
           <div id="mute-btn" title="Toggle Channel Mute"><i class="fa-solid fa-bell"></i></div>
         </div>
       </header>
+
+      <button id="sidebar-toggle-btn" class="sidebar-toggle-btn message-space-toggle" title="Toggle Side Panel">
+        <i class="fa-solid fa-bars"></i>
+      </button>
 
       <div class="message-container" id="messages"></div>
 
