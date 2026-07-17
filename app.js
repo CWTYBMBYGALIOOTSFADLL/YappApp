@@ -1262,23 +1262,15 @@ function loadUsersSidebar() {
     userList.innerHTML = ''; 
     userListCache = {};
     
-    // Locate this section inside your loadUsersSidebar getDocs loop:
+    // 1. Clear out user list and pull initial snapshots
     snapshot.forEach((docSnap) => {
       const user = docSnap.data();
       const userId = docSnap.id;
       
-      // 🟢 CRITICAL PRESENCE CHECK:
-      // If the user's lastSeen timestamp is older than 45 seconds, they closed their app!
-      let status = user.status || "online";
-      const now = Date.now();
-      if (user.lastSeen && (now - user.lastSeen > 45000)) {
-        status = "offline";
-      }
-      
       userListCache[userId] = { 
         displayName: user.displayName || user.username, 
         photoURL: user.photoURL || DEFAULT_AVATAR, 
-        status: status 
+        status: user.status || "offline" 
       };
 
       if (userId !== currentUser) {
@@ -1286,14 +1278,11 @@ function loadUsersSidebar() {
         userEl.classList.add('channel');
         userEl.setAttribute('data-user-id', userId); 
 
-        let statusDotColor = "#2ecc71";
-        if (status === "idle") statusDotColor = "#f1c40f";
-        else if (status === "offline") statusDotColor = "#95a5a6";
-
+        // Set fallback color while loading active sync loop
         userEl.innerHTML = `
           <div style="position: relative; display: flex; align-items: center;">
             <img src="${user.photoURL || DEFAULT_AVATAR}" class="sidebar-avatar" alt="avatar">
-            <span class="sidebar-status-dot" style="position: absolute; bottom: -2px; right: -2px; width: 15px; height: 15px; border-radius: 50%; background: ${statusDotColor}; border: 2px solid var(--darker-bg);"></span>
+            <span class="sidebar-status-dot" style="position: absolute; bottom: -2px; right: -2px; width: 15px; height: 15px; border-radius: 50%; background: #95a5a6; border: 2px solid var(--darker-bg);"></span>
           </div>
           <span style="flex: 1; margin-left: 8px;">${user.displayName || user.username}</span>
           <span class="notif-badge" id="badge-${userId}"></span>
@@ -1306,6 +1295,42 @@ function loadUsersSidebar() {
         });
         userList.appendChild(userEl);
       }
+    });
+
+    // 2. 🟢 LIVE ENGINE SYNC: Listen to Realtime Database status nodes directly for updates
+    snapshot.forEach((docSnap) => {
+      const userId = docSnap.id;
+      
+      onValue(rtdbRef(rtdb, `/status/${userId}`), (rtdbSnap) => {
+        if (rtdbSnap.exists()) {
+          const rtdbData = rtdbSnap.val();
+          
+          // Update local cache configuration
+          if (userListCache[userId]) {
+            userListCache[userId].status = rtdbData.status;
+          }
+
+          // Dynamically repaint the dot right on the screen
+          const userElement = document.querySelector(`.channel[data-user-id="${userId}"]`);
+          if (userElement) {
+            const statusDot = userElement.querySelector('.sidebar-status-dot');
+            if (statusDot) {
+              let statusDotColor = "#2ecc71"; // green (online)
+              if (rtdbData.status === "idle") statusDotColor = "#f1c40f"; // yellow (idle)
+              else if (rtdbData.status === "offline") statusDotColor = "#95a5a6"; // gray (offline)
+              
+              statusDot.style.background = statusDotColor;
+            }
+          }
+        }
+      });
+    });
+
+    // 3. Remove the old modified check inside unsubscribeSidebar if it overrides dot styling
+    if (unsubscribeSidebar) unsubscribeSidebar();
+    unsubscribeSidebar = onSnapshot(q, (liveSnapshot) => {
+       // Keep this block only to watch for profile configuration updates (pfps, name changes),
+       // do NOT repaint status dots using Firestore fields inside here anymore!
     });
 
     // Add an active RTDB listener loop inside your sidebar mapping stack
