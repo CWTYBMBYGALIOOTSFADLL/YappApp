@@ -432,18 +432,26 @@
       padding: 24px;
       gap: 8px;
       overflow-y: auto;
+      overflow-x: hidden;  /* 🟢 ADD THIS */
       background-color: #141414;
       scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
+      width: 100%;  /* 🟢 ADD THIS */
+      max-width: 100%;  /* 🟢 ADD THIS */
     }
 
+    
     .message {
       display: flex;
       flex-direction: column;
       max-width: 75%;
       position: relative;
       margin-bottom: 2px;
+      word-break: break-word;  /* 🟢 ADD THIS */
+      word-wrap: break-word;  /* 🟢 ADD THIS */
     }
+
+
 
     .message.yours {
       align-self: flex-end;
@@ -1403,124 +1411,129 @@
     }
 
     @media (max-width: 768px) {
-      .sidebar {
-        position: fixed;
-        top: 0;
-        left: -100%;
-        width: 280px;
-        height: 100vh;
-        z-index: 999;
-        background: var(--darker-bg);
-        box-shadow: 5px 0 25px rgba(0,0,0,0.6);
-        transition: left 0.3s ease;
-      }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 250px;
+    height: 100vh;
+    z-index: 999;
+    background: var(--darker-bg);
+    box-shadow: 5px 0 25px rgba(0,0,0,0.6);
+    transition: left 0.3s ease;
+  }
 
-      .sidebar.active {
-        left: 0;
-        margin-left: 0;
-      }
+  .sidebar.active {
+    left: 0;
+    margin-left: 0;
+  }
 
-      #chat-screen {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-      }
+  .sidebar-toggle-btn {
+    display: block !important;  /* 🟢 FORCE VISIBLE */
+    padding: 8px;
+    margin-right: 8px;
+  }
 
-      .chat-area {
-        width: 100%;
-      }
+  .chat-header {
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
 
-      .message-container {
-        padding: 16px 12px;
-        gap: 4px;
-      }
+  .header-left-cluster {
+    gap: 8px;
+    min-width: 0;  /* 🟢 ADD THIS */
+  }
 
-      .chat-header {
-        padding: 12px 16px;
-      }
+  #current-chat-title {
+    font-size: 0.95rem;
+    white-space: nowrap;  /* 🟢 ADD THIS */
+    overflow: hidden;  /* 🟢 ADD THIS */
+    text-overflow: ellipsis;  /* 🟢 ADD THIS */
+  }
 
-      .message-form {
-        padding: 12px 16px;
-        gap: 8px;
-      }
+  .channel-img {
+    width: 20px;
+    height: 20px;
+    display: none;  /* 🟢 HIDE ON MOBILE */
+  }
 
-      .message {
-        max-width: 90%;
-      }
+  .header-right-cluster {
+    gap: 8px;
+    margin-left: auto;
+  }
 
-      .bubble {
-        font-size: 0.9rem !important;
-        padding: 10px 14px !important;
-      }
+  .desktop-download-btn {
+    display: none !important;  /* 🟢 HIDE DOWNLOAD BTN */
+  }
 
-      .action-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-      }
+  .message-container {
+    padding: 12px 8px;
+    gap: 4px;
+    overflow-x: hidden;
+  }
 
-      .sender-name {
-        font-size: 0.75rem;
-      }
+  .message {
+    max-width: 88%;  /* 🟢 REDUCE FROM 90% */
+    word-break: break-word;
+  }
 
-      .timestamp {
-        font-size: 0.6rem;
-      }
+  .bubble {
+    font-size: 0.9rem;
+    padding: 10px 12px;
+    max-width: 100%;
+  }
 
-      .sidebar {
-        width: 250px;
-      }
+  .message-form {
+    padding: 10px 12px;
+    gap: 6px;
+  }
 
-      .desktop-download-btn span {
-        display: none;
-      }
+  #send-btn {
+    padding: 0 16px;
+    white-space: nowrap;
+  }
 
-      .shorts-panel {
-        display: none !important;
-      }
+  .action-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+}
 
-      .chat-header {
-        flex-wrap: wrap;
-      }
+@media (max-width: 480px) {
+  .sidebar-toggle-btn {
+    display: block !important;
+    font-size: 1.2rem;
+  }
 
-      #current-chat-title {
-        font-size: 1rem;
-      }
+  .message {
+    max-width: 92%;
+  }
 
-      .channel-img {
-        width: 24px;
-        height: 24px;
-      }
+  .chat-header {
+    padding: 8px 10px;
+  }
 
-      .sidebar-toggle-btn {
-        display: block;
-      }
+  #current-chat-title {
+    font-size: 0.85rem;
+  }
 
-      .modal {
-        width: 90%;
-        max-width: 400px;
-        padding: 20px;
-      }
+  .message-form {
+    padding: 8px 10px;
+  }
 
-      #call-overlay .modal {
-        width: 95vw;
-        max-width: 95vw;
-      }
+  .action-btn {
+    width: 36px;
+    height: 36px;
+  }
 
-      #video-grid {
-        height: 400px;
-        min-height: 400px;
-      }
-
-      .message-form textarea {
-        font-size: 0.95rem;
-      }
-
-      #send-btn {
-        padding: 0 20px;
-        font-size: 0.9rem;
-      }
-    }
+  #send-btn {
+    padding: 0 12px;
+    font-size: 0.85rem;
+  }
+}
 
     @media (max-width: 480px) {
       .sidebar {
