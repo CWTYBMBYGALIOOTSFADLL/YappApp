@@ -435,28 +435,6 @@ let idleTimer = null;
 let offlineTimer = null;
 let currentPresenceState = "online"; 
 
-function resetPresenceTimers() {
-  if (!currentUser) return;
-
-  if (currentPresenceState !== "online") {
-    currentPresenceState = "online";
-    updateDoc(doc(db, "users", currentUser), { status: userSelectedStatus }).catch(()=>{});
-  }
-
-  if (idleTimer) clearTimeout(idleTimer);
-  if (offlineTimer) clearTimeout(offlineTimer);
-
-  idleTimer = setTimeout(() => {
-    currentPresenceState = "idle";
-    updateDoc(doc(db, "users", currentUser), { status: "idle" }).catch(()=>{});
-  }, 300000); 
-
-  offlineTimer = setTimeout(() => {
-    currentPresenceState = "offline";
-    updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
-  }, 3600000);
-}
-
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
   document.addEventListener(evt, resetPresenceTimers, true);
 });
