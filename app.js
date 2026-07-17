@@ -413,18 +413,20 @@ async function setForceOffline() {
   }
 }
 
-// Fire if the window/tab is killed or navigated away
+// 🟢 FIXED LIFECYCLE TRACKER
+// Only run the beforeunload for hard tab/window closes
 window.addEventListener('beforeunload', () => {
   setForceOffline().catch(()=>{});
 });
 
-// Fire if the user minimizes the tab, switches apps, or hides the browser viewport
+// Remove the line that forces you offline when hidden!
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') {
-    setForceOffline().catch(()=>{});
-  } else if (document.visibilityState === 'visible' && currentUser) {
-    // Bring them back online instantly when they return to the active view
-    updateDoc(doc(db, "users", currentUser), { status: userSelectedStatus }).catch(()=>{});
+  if (document.visibilityState === 'visible' && currentUser) {
+    // If you return to the tab and are logged in, make sure you're syncing properly
+    updateDoc(doc(db, "users", currentUser), { 
+      status: userSelectedStatus,
+      lastSeen: Date.now() 
+    }).catch(()=>{});
   }
 });
 
