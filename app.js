@@ -7,6 +7,9 @@ import {
 import { 
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithCredential 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { 
+  getDatabase, ref as rtdbRef, set as rtdbSet, onDisconnect, onValue 
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
 // 1. FIREBASE CONFIG
 const firebaseConfig = {
@@ -23,6 +26,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
+const rtdb = getDatabase(app); // 🟢 Initialize free Realtime Database presence engine
 
 // 🛑 REALTIME EMERGENCY KILL SWITCH LISTENER
 onSnapshot(doc(db, "system", "config"), (docSnap) => {
@@ -437,10 +442,6 @@ let idleTimer = null;
 let offlineTimer = null;
 let currentPresenceState = "online"; 
 
-['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
-  document.addEventListener(evt, resetPresenceTimers, true);
-});
-
 // ==========================================
 // ⚙️ SETTINGS OVERLAY LOGIC
 // ==========================================
@@ -721,6 +722,7 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         enterChatApp(photoURL);
+        resetPresenceTimers();
         hideLoaderWhenFullyLoaded();
       } else {
         const rawUsername = customUsernameInput.value.trim().toLowerCase().replace(/\s+/g, '');
@@ -1304,6 +1306,30 @@ function loadUsersSidebar() {
         });
         userList.appendChild(userEl);
       }
+    });
+
+    // Add an active RTDB listener loop inside your sidebar mapping stack
+    snapshot.forEach((docSnap) => {
+      const userId = docSnap.id;
+      
+      // 🟢 Bind a listener to each user's fast connection node
+      onValue(rtdbRef(rtdb, `/status/${userId}`), (rtdbSnap) => {
+        if (rtdbSnap.exists()) {
+          const rtdbData = rtdbSnap.val();
+          
+          // Update the side panel indicators immediately if the server toggled their state
+          const userElement = document.querySelector(`.channel[data-user-id="${userId}"]`);
+          if (userElement) {
+            const statusDot = userElement.querySelector('.sidebar-status-dot');
+            if (statusDot) {
+              let statusDotColor = "#2ecc71"; // online
+              if (rtdbData.status === "idle") statusDotColor = "#f1c40f";
+              else if (rtdbData.status === "offline") statusDotColor = "#95a5a6";
+              statusDot.style.background = statusDotColor;
+            }
+          }
+        }
+      });
     });
 
     if (unsubscribeSidebar) unsubscribeSidebar();
@@ -1948,6 +1974,7 @@ if (logoutBtn) {
         await updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
       }
 
+      isRtdbPresenceSetup = false;
       killAllListeners();
       chatMessagesCache = {};
       await signOut(auth);
@@ -2041,39 +2068,66 @@ async function appendLinkPreviews(text, containerElement) {
   }
 }
 
-let heartbeatInterval = null; // Add this variable at the top of your state variables section
+// Add these status layout helper flags right under your lifecycle trackers
+let heartbeatInterval = null; 
+let isRtdbPresenceSetup = false;
 
+// 🟢 FIX: Wrap the structural routine block correctly inside its function declaration
 function resetPresenceTimers() {
   if (!currentUser) return;
 
+  // 1. Core local state verification
   if (currentPresenceState !== "online") {
     currentPresenceState = "online";
-    updateDoc(doc(db, "users", currentUser), { 
-      status: userSelectedStatus,
-      lastSeen: Date.now() // 🟢 Log current time on interaction
-    }).catch(()=>{});
+    updateDoc(doc(db, "users", currentUser), { status: userSelectedStatus }).catch(()=>{});
   }
 
-  // 🟢 Start a heartbeat ping that updates the database every 20 seconds while active
-  if (!heartbeatInterval) {
-    heartbeatInterval = setInterval(() => {
-      if (currentPresenceState === "online" && currentUser) {
-        updateDoc(doc(db, "users", currentUser), { lastSeen: Date.now() }).catch(()=>{});
+  // 2. SERVER-SIDE DISCONNECT ROUTINE (Only bind this once per session login)
+  if (!isRtdbPresenceSetup) {
+    const userStatusRtdbRef = rtdbRef(rtdb, `/status/${currentUser}`);
+    
+    // Check connection state helper node
+    const connectedRef = rtdbRef(rtdb, ".info/connected");
+    onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        // Set up the server hook: change RTDB to offline if user connection abruptly cuts out
+        // 🟢 CHANGED: Swapped serverTimestamp() out for Date.now() to match RTDB structures
+        onDisconnect(userStatusRtdbRef).set({
+          status: "offline",
+          lastChanged: Date.now()
+        }).then(() => {
+          // While connected, keep it active
+          rtdbSet(userStatusRtdbRef, {
+            status: userSelectedStatus,
+            lastChanged: Date.now()
+          });
+        });
       }
-    }, 20000);
+    });
+
+    isRtdbPresenceSetup = true;
   }
 
+  // 3. Clear and handle idle thresholds locally
   if (idleTimer) clearTimeout(idleTimer);
   if (offlineTimer) clearTimeout(offlineTimer);
 
+  // Turn yellow (Idle) if user goes AFK for 5 minutes
   idleTimer = setTimeout(() => {
     currentPresenceState = "idle";
     updateDoc(doc(db, "users", currentUser), { status: "idle" }).catch(()=>{});
+    if (currentUser) rtdbSet(rtdbRef(rtdb, `/status/${currentUser}`), { status: "idle", lastChanged: Date.now() });
   }, 300000); 
 
+  // Hard offline cut-off if inactive for 1 hour
   offlineTimer = setTimeout(() => {
     currentPresenceState = "offline";
-    if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
     updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
+    if (currentUser) rtdbSet(rtdbRef(rtdb, `/status/${currentUser}`), { status: "offline", lastChanged: Date.now() });
   }, 3600000);
 }
+
+// 🟢 Bind the interaction listeners right AFTER the function definition
+['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+  document.addEventListener(evt, resetPresenceTimers, true);
+});
