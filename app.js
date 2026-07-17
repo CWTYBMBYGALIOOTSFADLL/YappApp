@@ -401,9 +401,30 @@ document.querySelectorAll('.status-option').forEach(opt => {
   });
 });
 
-window.addEventListener('beforeunload', () => {
+// 🟢 RELIABLE FORCE-OFFLINE ENGINE
+async function setForceOffline() {
   if (currentUser) {
-    updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
+    try {
+      // Use a direct update to notify the database right before closure
+      await updateDoc(doc(db, "users", currentUser), { status: "offline" });
+    } catch (err) {
+      console.warn("Force offline broadcast failed:", err);
+    }
+  }
+}
+
+// Fire if the window/tab is killed or navigated away
+window.addEventListener('beforeunload', () => {
+  setForceOffline().catch(()=>{});
+});
+
+// Fire if the user minimizes the tab, switches apps, or hides the browser viewport
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    setForceOffline().catch(()=>{});
+  } else if (document.visibilityState === 'visible' && currentUser) {
+    // Bring them back online instantly when they return to the active view
+    updateDoc(doc(db, "users", currentUser), { status: userSelectedStatus }).catch(()=>{});
   }
 });
 
@@ -1262,7 +1283,13 @@ function loadUsersSidebar() {
     snapshot.forEach((docSnap) => {
       const user = docSnap.data();
       const userId = docSnap.id;
-      const status = user.status || "online";
+      let status = user.status || "online";
+
+      // 🟢 HEARTBEAT FALLBACK: If user crashed out without firing clean exit listeners,
+      // automatically mark them as offline if they've been inactive for over 5 minutes.
+      if (user.lastActive && (Date.now() - user.lastActive > 300000) && status !== "offline") {
+        status = "offline";
+      }
       
       userListCache[userId] = { 
         displayName: user.displayName || user.username, 
@@ -2030,4 +2057,29 @@ async function appendLinkPreviews(text, containerElement) {
       `;
     }
   }
+}
+
+function resetPresenceTimers() {
+  if (!currentUser) return;
+
+  if (currentPresenceState !== "online") {
+    currentPresenceState = "online";
+    updateDoc(doc(db, "users", currentUser), { 
+      status: userSelectedStatus,
+      lastActive: Date.now() // 🟢 Store active millisecond interval
+    }).catch(()=>{});
+  }
+
+  if (idleTimer) clearTimeout(idleTimer);
+  if (offlineTimer) clearTimeout(offlineTimer);
+
+  idleTimer = setTimeout(() => {
+    currentPresenceState = "idle";
+    updateDoc(doc(db, "users", currentUser), { status: "idle" }).catch(()=>{});
+  }, 300000); 
+
+  offlineTimer = setTimeout(() => {
+    currentPresenceState = "offline";
+    updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
+  }, 3600000);
 }
