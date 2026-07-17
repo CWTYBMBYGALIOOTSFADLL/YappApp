@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -179,14 +178,13 @@
 
     #chat-screen {
       display: none;
-      width: 100%;
-      max-width: 1700px;
-      height: 90vh;
-      margin: auto;
+      width: 100vw;         /* 🟢 Forces full viewport width instead of a static cap */
+      max-width: 100%;      /* 🟢 Overrides the previous 1700px boundary limit */
+      height: 100vh;        /* 🟢 Expands from 90vh to 100% full screen height */
+      margin: 0;            /* 🟢 Removes automatic margins */
       background-color: var(--darker-bg);
-      border-radius: var(--radius-sm);
       overflow: hidden;
-      border: 1.5px solid var(--border);
+      border: none;         /* 🟢 Optional: removes outer border frame for a borderless desktop feel */
     }
 
     #chat-screen.active {
@@ -336,9 +334,6 @@
       opacity: 0.5;
     }
 
-    /* ========================================== */
-    /* 🎨 CUSTOM HEADER STATUS DROPDOWN & DND UI  */
-    /* ========================================== */
     .status-dropdown {
       position: absolute;
       top: 120%;
@@ -382,9 +377,6 @@
       background: var(--button-bg) !important;
     }
 
-    /* ========================================== */
-    /* 🎨 CUSTOM STYLED CHECKBOX FOR SETTINGS     */
-    /* ========================================== */
     .custom-checkbox-wrapper {
       display: flex;
       align-items: center;
@@ -436,7 +428,7 @@
       display: flex;
       flex-direction: column;
       padding: 24px;
-      gap: 20px;
+      gap: 8px;
       overflow-y: auto;
       background-color: #141414;
       scrollbar-width: thin;
@@ -448,7 +440,7 @@
       flex-direction: column;
       max-width: 75%;
       position: relative;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
     }
 
     .message.yours {
@@ -464,6 +456,53 @@
 
     .message.yours .message-content-wrapper {
       align-items: flex-end;
+    }
+
+    /* 🟢 Merged consecutive bubble line styling */
+    .bubble-line-item {
+      display: block;
+      position: relative;
+      margin-top: 8px; /* Gap between consecutive lines inside the same box */
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05); /* Subtle dividing line */
+      width: 100%;
+    }
+
+    /* For your own bubbles, adjust divider color slightly */
+    .message.yours .bubble-line-item {
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    /* Ensure images inside a merged bubble scale cleanly and don't overflow */
+    .bubble img {
+      display: block;
+      max-width: 350px;
+      max-height: 350px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+      margin-top: 4px;
+    }
+
+    /* consecutive message styling (Discord-style) */
+    .message.consecutive {
+      margin-top: -6px !important; /* Pull consecutive bubbles closer together */
+      margin-bottom: 2px !important;
+    }
+
+    .message.consecutive .sender-row {
+      display: none !important; /* Hide the duplicate username & timestamp row */
+    }
+
+    /* For other users (consecutive): smooth out the top corners of the bubbles */
+    .message.consecutive:not(.yours) .bubble {
+      border-top-left-radius: 4px !important;
+    }
+
+    /* For your own consecutive messages: smooth out the top corners of the bubbles */
+    .message.yours.consecutive .bubble {
+      border-top-right-radius: 4px !important;
     }
 
     .message-avatar {
@@ -500,9 +539,6 @@
       color: #666;
     }
 
-    /* ========================================== */
-    /* 🔌 PRECISE GRID-ORDER FLEX LAYOUT          */
-    /* ========================================== */
     .message-bubble-wrapper {
       display: flex;
       align-items: center;
@@ -512,7 +548,6 @@
       flex-direction: row;
     }
 
-    /* 👥 OTHER USERS (Left Aligned): Bubble -> Avatar -> Action Buttons */
     .message .bubble {
       order: 1;
       padding: 14px 18px;
@@ -526,7 +561,7 @@
       display: flex;
       flex-direction: column;
       max-width: 100%;
-      margin: 0 !important; /* Touch flat edge of the PFP container */
+      margin: 0 !important;
     }
 
     .message .avatar-box {
@@ -537,14 +572,13 @@
 
     .message .msg-actions {
       order: 3;
-      margin-left: 12px; /* Prevent actions from clipping PFP */
+      margin-left: 12px;
       flex-direction: row;
     }
 
-    /* 👤 YOUR MESSAGES (Right Aligned): Action Buttons -> Avatar -> Bubble */
     .message.yours .msg-actions {
       order: 1;
-      margin-right: 12px; /* Prevent actions from clipping PFP */
+      margin-right: 12px;
       flex-direction: row-reverse;
     }
 
@@ -560,7 +594,7 @@
       color: var(--darker-bg);
       border: none;
       font-weight: 500;
-      margin: 0 !important; /* Touch flat edge of the PFP container */
+      margin: 0 !important;
     }
 
     .bubble.mentioned {
@@ -588,9 +622,6 @@
       margin-right: 6px;
     }
 
-    /* ========================================== */
-    /* ⚙️ MESSAGE ACTIONS ALIGNMENT & DESIGN      */
-    /* ========================================== */
     .msg-actions {
       display: flex;
       gap: 4px;
@@ -748,7 +779,6 @@
       border-color: var(--golden);
     }
 
-    /* AFTER */
     .message-form textarea {
       flex: 1;
       padding: 14px 20px;
@@ -758,10 +788,10 @@
       outline: none;
       background: var(--dark-bg);
       color: var(--text-color);
-      resize: none;               /* Hides the manual resize corner handle */
-      height: 50px;               /* Default starting height */
-      max-height: 150px;          /* Maximum height before showing scrollbar */
-      overflow-y: auto;           /* Scroll vertically if max-height is reached */
+      resize: none;
+      height: 50px;
+      max-height: 150px;
+      overflow-y: auto;
       line-height: 1.4;
       display: block;
     }
@@ -1067,66 +1097,54 @@
       display: block;
     }
 
-    /* 🔄 The keyframe animation that shifts the box 3px down and springs back up */
     @keyframes bounceDown {
       0% {
         transform: translateY(0);
       }
       30% {
-        transform: translateY(0.3rem); /* Shift down */
+        transform: translateY(0.3rem);
       }
       100% {
-        transform: translateY(0); /* Smoothly spring back up */
+        transform: translateY(0);
       }
     }
 
-    /* 💥 The utility class that triggers the animation */
     .bounce-typing {
       animation: bounceDown 0.15s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
 
-    /* ========================================== */
-    /* 📦 SWAPPED AVATAR BOX & CONNECTOR TABS     */
-    /* ========================================== */
     .avatar-box {
       display: flex;
       align-items: center;
       justify-content: center;
       width: 48px;
-      height: 38px; /* Matches the height of the pfp area */
-      background-color: #113e7ab0; /* Different color than background */
+      height: 38px;
+      background-color: #113e7ab0;
       flex-shrink: 0;
       position: relative;
       z-index: 2;
       transition: transform 0.25s ease;
-
-      /* 👥 OTHER USERS: Flat edge on the left (touching bubble), rounded on the right */
       border-radius: 0 50% 50% 0;
       padding: 3px 3px 3px 12px;
     }
 
-    /* For YOUR messages, flip the extension and rounding to the left side */
     .message.yours .avatar-box {
-      /* 👤 YOUR MESSAGES: Flat edge on the right (touching bubble), rounded on the left */
       border-radius: 50% 0 0 50%;
       padding: 3px 12px 3px 3px;
     }
 
-    /* Ensure the circular avatar stays on its respective side inside the extended box */
     .avatar-box .message-avatar {
-      width: 32px; /* Keeps the avatar itself at the original size */
+      width: 32px;
       height: 32px;
-      border-radius: 50%; /* Keeps it perfectly circular */
+      border-radius: 50%;
       object-fit: cover;
       border: none;
     }
 
-    /* 🖼 *Hide the avatar and connector box ONLY for image messages */
     .message.image-message .avatar-box {
       display: none !important;
     }
 
-    /* 🟢 Standalone Image Message alignment and sizing */
     .message.image-message {
       width: fit-content;
     }
@@ -1136,18 +1154,15 @@
       border: none !important;
       box-shadow: none !important;
       padding: 0 !important;
-      margin: 0 !important; /* Removes the avatar offset gap completely */
+      margin: 0 !important;
       width: fit-content;
     }
 
-    /* Align yours (right-sided) image messages to slide slightly more right */
     .message.yours.image-message {
       align-self: flex-end;
-      /* Adds a slight right shift to line up perfectly under the username's end edge */
       margin-right: 4px;
     }
 
-    /* Ensure the image remains clean, bounded, and zoomable */
     .message.image-message img {
       max-width: 350px;
       max-height: 350px;
@@ -1160,7 +1175,6 @@
       border: none !important;
     }
 
-    /* 🟢 FIXED: Clean, visible quoted reply banners for both parties */
     .quoted-reply {
       font-size: 0.75rem;
       background: rgba(255, 255, 255, 0.07);
@@ -1176,11 +1190,10 @@
       opacity: 0.9;
     }
 
-    /* Style overrides for YOUR bubbles so the text is highly readable */
     .message.yours .quoted-reply {
       border-left: 3px solid var(--darker-bg);
       background: rgba(0, 0, 0, 0.08);
-      color: rgba(24, 24, 24, 0.7); /* Readable dark text on golden bubble */
+      color: rgba(24, 24, 24, 0.7);
     }
     
     .message.yours .quoted-reply strong {
@@ -1192,11 +1205,6 @@
       transform: scale(1.02);
     }
 
-    /* ========================================== */
-    /* 🟢 DESKTOP DOWNLOAD BUTTON (TOP BAR CENTER)*/
-    /* ========================================== */
-
-    /* Ensure the top header distributes elements evenly to hold the center */
     .chat-header {
       display: flex;
       justify-content: space-between;
@@ -1204,7 +1212,6 @@
       position: relative;
     }
 
-    /* Force left and right blocks to take equal space so the middle item stays dead-center */
     #current-chat-title {
       flex: 1;
       display: flex;
@@ -1217,7 +1224,6 @@
       justify-content: flex-end;
     }
 
-    /* The styled Windows download button */
     .desktop-download-btn {
       display: flex;
       align-items: center;
@@ -1226,22 +1232,21 @@
       background-color: var(--dark-bg);
       color: var(--text-color);
       border: 1.5px solid var(--border);
-      border-radius: 50px;             /* Perfectly rounded sides */
+      border-radius: 50px;
       padding: 8px 20px;
       font-size: 0.85rem;
       font-weight: 500;
       cursor: pointer;
-      height: 38px;                    /* Centered perfectly inline with the profile badge */
+      height: 38px;
       transition: background-color 0.2s, border-color 0.2s;
       user-select: none;
     }
 
     .desktop-download-btn i {
       font-size: 1rem;
-      color: #0078d4;                 /* Clean Classic Windows Blue for the logo */
+      color: #0078d4;
     }
 
-    /* Simple hover with no glows or animations */
     .desktop-download-btn:hover {
       background-color: var(--button-bg);
       border-color: var(--golden);
@@ -1251,9 +1256,6 @@
       opacity: 0.8;
     }
 
-    /* ========================================== */
-    /* 🟢 INPUT EMOJI BUTTON (SMILEY)            */
-    /* ========================================== */
     #input-emoji-btn {
       background: var(--dark-bg);
       border: 1.5px solid var(--border);
@@ -1314,15 +1316,14 @@
       <h1>yappapp</h1>
       <p>enter a username (new users only) & sign in with Google :3</p>
 
-  <input type="text" id="custom-username-input" placeholder="choose username... (3+ chars, lowercase)" autocomplete="off" style="margin-bottom: 12px;">
+      <input type="text" id="custom-username-input" placeholder="choose username... (3+ chars, lowercase)" autocomplete="off" style="margin-bottom: 12px;">
 
-  <button id="google-login-btn" style="background-color: #4285F4; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
-    <i class="fa-brands fa-google"></i> Sign in with Google
-  </button>
+      <button id="google-login-btn" style="background-color: #4285F4; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;">
+        <i class="fa-brands fa-google"></i> Sign in with Google
+      </button>
 
-  <p style="color: gray; padding-top: 10px;">(we have removed signing in with just a password because of the increased security)</p>
-</div>
-
+      <p style="color: gray; padding-top: 10px;">(we have removed signing in with just a password because of the increased security)</p>
+    </div>
   </div>
 
   <div id="maintenance-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--dark-bg); z-index: 10000; color: var(--text-color);">
@@ -1362,72 +1363,71 @@
       <div class="user-list" id="user-list"></div>
     </aside>
 
-<div class="shorts-panel left" id="shorts-left"></div>
-<div class="shorts-panel right" id="shorts-right"></div>
+    <div class="shorts-panel left" id="shorts-left"></div>
+    <div class="shorts-panel right" id="shorts-right"></div>
 
-<main class="chat-area">
-  <header class="chat-header">
-    <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
+    <main class="chat-area">
+      <header class="chat-header">
+        <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
 
-    <button id="desktop-download-btn" class="desktop-download-btn">
-      <i class="fa-brands fa-windows"></i>
-      <span>Download Desktop App</span>
-    </button>
+        <button id="desktop-download-btn" class="desktop-download-btn">
+          <i class="fa-brands fa-windows"></i>
+          <span>Download Desktop App</span>
+        </button>
 
-    <div style="display: flex; align-items: center; gap: 15px;">
-      <div id="call-btn" title="Start Call Session" style="display: block; cursor: pointer; font-size: 1.2rem; color: #2ecc71; transition: 0.2s; margin-right: 5px;">
-        <i class="fa-solid fa-phone"></i>
-      </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div id="call-btn" title="Start Call Session" style="display: block; cursor: pointer; font-size: 1.2rem; color: #2ecc71; transition: 0.2s; margin-right: 5px;">
+            <i class="fa-solid fa-phone"></i>
+          </div>
 
-      <div id="user-profile-badge" style="position: relative; display: flex; align-items: center; gap: 10px; background: var(--dark-bg); padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border); cursor: pointer; transition: 0.2s;">
-        <div style="position: relative;">
-          <img id="user-avatar" src="" alt="avatar" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: none;">
-          <div id="header-status-dot"></div>
+          <div id="user-profile-badge" style="position: relative; display: flex; align-items: center; gap: 10px; background: var(--dark-bg); padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border); cursor: pointer; transition: 0.2s;">
+            <div style="position: relative;">
+              <img id="user-avatar" src="" alt="avatar" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; display: none;">
+              <div id="header-status-dot"></div>
+            </div>
+            <span id="user-profile-name" style="font-size: 0.85rem; font-weight: 500; color: var(--text-color);"></span>
+            <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; color: var(--grayout-bg);"></i>
+
+            <div id="status-dropdown" class="status-dropdown">
+              <div class="status-option" data-status="online"><span style="color: #2ecc71;">🟢</span> Online</div>
+              <div class="status-option" data-status="idle"><span style="color: #f1c40f;">🟡</span> Idle</div>
+              <div class="status-option" data-status="offline"><span style="color: #95a5a6;">⚪</span> Invisible</div>
+            </div>
+          </div>
+
+          <div id="dnd-btn" class="icon-btn" title="Do Not Disturb: OFF" style="cursor: pointer; font-size: 1.25rem; transition: 0.2s;">
+            <i class="fa-solid fa-circle-minus" style="opacity: 0.4;"></i>
+          </div>
+
+          <div id="mute-btn" title="Toggle Channel Mute"><i class="fa-solid fa-bell"></i></div>
         </div>
-        <span id="user-profile-name" style="font-size: 0.85rem; font-weight: 500; color: var(--text-color);"></span>
-        <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; color: var(--grayout-bg);"></i>
+      </header>
 
-        <div id="status-dropdown" class="status-dropdown">
-          <div class="status-option" data-status="online"><span style="color: #2ecc71;">🟢</span> Online</div>
-          <div class="status-option" data-status="idle"><span style="color: #f1c40f;">🟡</span> Idle</div>
-          <div class="status-option" data-status="offline"><span style="color: #95a5a6;">⚪</span> Invisible</div>
+      <div class="message-container" id="messages"></div>
+
+      <button id="scroll-bottom-btn" title="Scroll to bottom">
+        <i class="fa-solid fa-arrow-down"></i>
+      </button>
+
+      <div id="reply-banner">
+        <span><i class="fa-solid fa-reply" style="margin-right: 8px;"></i>Replying to <strong id="reply-to-name"></strong>: <span id="reply-to-text"></span></span>
+        <button id="cancel-reply-btn" title="Cancel Reply"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form class="message-form" id="message-form">
+        <div class="action-btn" id="attach-btn" title="Send File">
+          <span id="attach-icon"><i class="fa-solid fa-plus"></i></span>
         </div>
-      </div>
 
-      <div id="dnd-btn" class="icon-btn" title="Do Not Disturb: OFF" style="cursor: pointer; font-size: 1.25rem; transition: 0.2s;">
-        <i class="fa-solid fa-circle-minus" style="opacity: 0.4;"></i>
-      </div>
+        <div class="action-btn" id="input-emoji-btn" title="Choose Emoji">
+          <i class="fa-regular fa-face-smile"></i>
+        </div>
 
-      <div id="mute-btn" title="Toggle Channel Mute"><i class="fa-solid fa-bell"></i></div>
-    </div>
-  </header>
-
-  <div class="message-container" id="messages"></div>
-
-  <button id="scroll-bottom-btn" title="Scroll to bottom">
-    <i class="fa-solid fa-arrow-down"></i>
-  </button>
-
-  <div id="reply-banner">
-    <span><i class="fa-solid fa-reply" style="margin-right: 8px;"></i>Replying to <strong id="reply-to-name"></strong>: <span id="reply-to-text"></span></span>
-    <button id="cancel-reply-btn" title="Cancel Reply"><i class="fa-solid fa-xmark"></i></button>
-  </div>
-
-  <form class="message-form" id="message-form">
-    <div class="action-btn" id="attach-btn" title="Send File">
-      <span id="attach-icon"><i class="fa-solid fa-plus"></i></span>
-    </div>
-
-    <div class="action-btn" id="input-emoji-btn" title="Choose Emoji">
-      <i class="fa-regular fa-face-smile"></i>
-    </div>
-
-    <input type="file" id="file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp" multiple>
-    <textarea id="message-input" placeholder="type a message..." autocomplete="off" rows="1"></textarea>
-    <button type="submit" id="send-btn">send</button>
-  </form>
-</main>
-
+        <input type="file" id="file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp" multiple>
+        <textarea id="message-input" placeholder="type a message..." autocomplete="off" rows="1"></textarea>
+        <button type="submit" id="send-btn">send</button>
+      </form>
+    </main>
   </div>
 
   <div class="modal-overlay" id="settings-overlay">
@@ -1436,52 +1436,198 @@
       <label>Display Name</label>
       <input type="text" id="display-name-input" placeholder="How others see you...">
 
-  <label>Profile Picture</label>
-  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-    <img id="settings-avatar-preview" src="" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border);">
-    <button id="upload-pfp-btn" style="padding: 8px 12px; font-size: 0.85rem; margin-top: 0; background: var(--dark-bg); color: var(--text-color); border: 1.5px solid var(--border);">Choose Image</button>
-    <input type="file" id="pfp-file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp">
-  </div>
+      <label>Profile Picture</label>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <img id="settings-avatar-preview" src="" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--border);">
+        <button id="upload-pfp-btn" style="padding: 8px 12px; font-size: 0.85rem; margin-top: 0; background: var(--dark-bg); color: var(--text-color); border: 1.5px solid var(--border);">Choose Image</button>
+        <input type="file" id="pfp-file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp">
+      </div>
 
-  <div style="display: flex; gap: 15px; width: 100%;">
-    <div style="flex: 1;">
-      <label>Accent Color</label>
-      <input type="color" id="accent-color-input" value="#a3b3ff">
+      <div style="display: flex; gap: 15px; width: 100%;">
+        <div style="flex: 1;">
+          <label>Accent Color</label>
+          <input type="color" id="accent-color-input" value="#a3b3ff">
+        </div>
+        <div style="flex: 1;">
+          <label>Text Color</label>
+          <input type="color" id="text-color-input" value="#D4D4D4">
+        </div>
+      </div>
+
+      <label>App Font</label>
+      <select id="font-input">
+        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+        <option value="'Fira Code', monospace">Fira Code</option>
+        <option value="'Courier Prime', monospace">Courier Prime</option>
+        <option value="sans-serif">Standard UI</option>
+      </select>
+
+      <label class="custom-checkbox-wrapper">
+        <input type="checkbox" id="hide-shorts-checkbox" class="custom-checkbox">
+        <span style="font-size: 0.9rem; font-weight: 400; color: var(--grayout-bg);">Show side Shorts panels</span>
+      </label>
+
+      <button id="save-settings-btn">save changes</button>
+      <button id="reset-settings-btn" class="btn-secondary" style="color: var(--golden) !important;">reset to default colors</button>
+
+      <button id="logout-btn" style="background-color: var(--danger); color: white; margin-top: 5px;">
+        <i class="fa-solid fa-right-from-bracket"></i> log out
+      </button>
+
+      <button id="close-settings-btn" class="btn-secondary">cancel</button>
     </div>
-    <div style="flex: 1;">
-      <label>Text Color</label>
-      <input type="color" id="text-color-input" value="#D4D4D4">
-    </div>
-  </div>
-
-  <label>App Font</label>
-  <select id="font-input">
-    <option value="'Roboto Mono', monospace">Roboto Mono</option>
-    <option value="'Fira Code', monospace">Fira Code</option>
-    <option value="'Courier Prime', monospace">Courier Prime</option>
-    <option value="sans-serif">Standard UI</option>
-  </select>
-
-  <label class="custom-checkbox-wrapper">
-    <input type="checkbox" id="hide-shorts-checkbox" class="custom-checkbox">
-    <span style="font-size: 0.9rem; font-weight: 400; color: var(--grayout-bg);">Show side Shorts panels</span>
-  </label>
-
-  <button id="save-settings-btn">save changes</button>
-  <button id="reset-settings-btn" class="btn-secondary" style="color: var(--golden) !important;">reset to default colors</button>
-
-  <button id="logout-btn" style="background-color: var(--danger); color: white; margin-top: 5px;">
-    <i class="fa-solid fa-right-from-bracket"></i> log out
-  </button>
-
-  <button id="close-settings-btn" class="btn-secondary">cancel</button>
-</div>
-
   </div>
 
   <div id="emoji-picker-wrapper">
     <emoji-picker class="dark"></emoji-picker>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // 1. Core State
+      let textHistory = "";
+      let repeatCount = 1;
+      let isLocalMute = false;
+      let localMuteTimer = null;
+      
+      // Image state
+      let loadedImagesInWindow = [];
+
+      const form = document.getElementById("message-form");
+      const textInput = document.getElementById("message-input");
+      const submitButton = document.getElementById("send-btn");
+      const attachButton = document.getElementById("attach-btn");
+      const fileInputElement = document.getElementById("file-input");
+
+      // 2. Levenshtein Distance & Similarity Calculator
+      const getSimilarityRatio = (str1, str2) => {
+        const s1 = str1.toLowerCase().trim();
+        const s2 = str2.toLowerCase().trim();
+        
+        if (s1 === s2) return 1.0;
+        if (s1.length === 0 || s2.length === 0) return 0.0;
+
+        const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+        for (let i = 0; i <= s1.length; i += 1) track[0][i] = i;
+        for (let j = 0; j <= s2.length; j += 1) track[j][0] = j;
+
+        for (let j = 1; j <= s2.length; j += 1) {
+          for (let i = 1; i <= s1.length; i += 1) {
+            const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+            track[j][i] = Math.min(
+              track[j][i - 1] + 1, // deletion
+              track[j - 1][i] + 1, // insertion
+              track[j - 1][i - 1] + indicator // substitution
+            );
+          }
+        }
+        
+        const distance = track[s2.length][s1.length];
+        const maxLength = Math.max(s1.length, s2.length);
+        return (maxLength - distance) / maxLength;
+      };
+
+      // 3. Mute Trigger Logic
+      const applyLocalMute = (seconds, callback) => {
+        isLocalMute = true;
+        textInput.disabled = true;
+        submitButton.disabled = true;
+        attachButton.style.pointerEvents = "none";
+        
+        const originalPlaceholder = textInput.placeholder;
+        let timeRemaining = seconds;
+
+        textInput.value = "";
+        textInput.placeholder = `[Spam Alert] Muted for ${timeRemaining}s...`;
+
+        localMuteTimer = setInterval(() => {
+          timeRemaining--;
+          if (timeRemaining > 0) {
+            textInput.placeholder = `[Spam Alert] Muted for ${timeRemaining}s...`;
+          } else {
+            clearInterval(localMuteTimer);
+            isLocalMute = false;
+            textInput.disabled = false;
+            submitButton.disabled = false;
+            attachButton.style.pointerEvents = "auto";
+            textInput.placeholder = originalPlaceholder;
+            if (callback) callback();
+          }
+        }, 1000);
+      };
+
+      // 4. Form Submission Interceptor
+      form.addEventListener("submit", (e) => {
+        if (isLocalMute) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          return;
+        }
+
+        const currentText = textInput.value.trim();
+        if (!currentText) return;
+
+        // If similarity is 80% or greater, we treat it as a duplicate
+        const similarity = getSimilarityRatio(currentText, textHistory);
+        
+        if (similarity >= 0.80) {
+          repeatCount++;
+        } else {
+          repeatCount = 1;
+          textHistory = currentText;
+        }
+
+        // Progressive Action Rules
+        if (repeatCount === 5) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          applyLocalMute(30);
+          return;
+        } else if (repeatCount === 6) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          applyLocalMute(60);
+          return;
+        } else if (repeatCount >= 7) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          
+          textInput.value = "";
+          alert("❌ You have been disconnected for spamming similar messages.");
+          
+          // Trigger the program's physical logout routine cleanly
+          const logOutBtn = document.getElementById("logout-btn");
+          if (logOutBtn) logOutBtn.click();
+          return;
+        }
+      }, true); // Capture phase overrides module listener
+
+      // 5. Image Upload Rate Limiting
+      fileInputElement.addEventListener("change", (e) => {
+        const filesSelected = Array.from(e.target.files);
+        if (filesSelected.length === 0) return;
+
+        const now = Date.now();
+        // Clean old timestamps out of window (15 seconds)
+        loadedImagesInWindow = loadedImagesInWindow.filter(time => now - time < 15000);
+
+        const proposedTotal = loadedImagesInWindow.length + filesSelected.length;
+
+        if (proposedTotal > 3) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          fileInputElement.value = ""; // Empty queue
+          alert("❌ Upload limit exceeded! You can only post up to 3 images every 15 seconds.");
+          return;
+        }
+
+        // Add timestamps for successful files passing validation
+        for (let i = 0; i < filesSelected.length; i++) {
+          loadedImagesInWindow.push(now);
+        }
+      }, true);
+    });
+  </script>
 
   <script type="module" src="app.js"></script>
 
@@ -1511,14 +1657,13 @@
       <i class="fa-solid fa-xmark"></i>
     </button>
 
-<div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: #ccc; pointer-events: none; z-index: 10010;">
-  Scroll to Zoom • Drag to Pan
-</div>
+    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: #ccc; pointer-events: none; z-index: 10010;">
+      Scroll to Zoom • Drag to Pan
+    </div>
 
-<div id="viewer-container" style="transition: transform 0.1s ease-out; transform-origin: center; display: flex; justify-content: center; align-items: center;">
-  <img id="viewer-img" src="" alt="View Large" style="max-width: 90vw; max-height: 90vh; object-fit: contain; pointer-events: none; user-select: none; border-radius: 4px;">
-</div>
-
+    <div id="viewer-container" style="transition: transform 0.1s ease-out; transform-origin: center; display: flex; justify-content: center; align-items: center;">
+      <img id="viewer-img" src="" alt="View Large" style="max-width: 90vw; max-height: 90vh; object-fit: contain; pointer-events: none; user-select: none; border-radius: 4px;">
+    </div>
   </div>
 </body>
 </html>
