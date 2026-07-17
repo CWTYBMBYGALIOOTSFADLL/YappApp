@@ -1582,15 +1582,19 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
         const lineItem = document.createElement('div');
         lineItem.classList.add('bubble-line-item');
         
-        // Render either text or image inside the merged line item
         if (data.type === 'image') {
           lineItem.innerHTML = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
         } else {
-          lineItem.innerHTML = `<span>${decryptText(data.text)}</span>`;
+          // 🟢 Pass text into Markdown Parser
+          const plainText = decryptText(data.text);
+          lineItem.innerHTML = `<span>${parseMarkdown(plainText)}</span>`;
+          
+          // 🟢 Scan and process links right onto the line layout
+          setTimeout(() => appendLinkPreviews(plainText, lineItem), 10);
         }
         
         bubbleContainer.appendChild(lineItem);
-        return lastMessageElement; // Return existing element to prevent duplication
+        return lastMessageElement;
       }
     }
   }
@@ -1634,6 +1638,8 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
   });
   reactionsDisplayHtml += `</div>`;
 
+  const decryptedMsg = decryptText(data.text);
+
   msgDiv.innerHTML = `
     <div class="message-content-wrapper">
       <div class="sender-row" style="${isYours ? 'margin-right: 4px;' : 'margin-left: 4px;'}">
@@ -1646,7 +1652,7 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
 
         <div class="bubble ${isPing ? 'mentioned' : ''}">
           ${quotedHtml}
-          ${data.type === 'image' ? `<img src="${data.imageUrl}" alt="uploaded image">` : `<span>${decryptText(data.text)}</span>`}
+          ${data.type === 'image' ? `<img src="${data.imageUrl}" alt="uploaded image">` : `<span class="text-content-node">${parseMarkdown(decryptedMsg)}</span>`}
         </div>
 
         <div class="msg-actions">
@@ -1691,6 +1697,14 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     msgDiv.querySelector('.delete-btn').addEventListener('click', async () => {
       try { await deleteDoc(doc(db, collectionName, docId)); } catch (err) {}
     });
+  }
+
+  // 🟢 Append preview cards if an external link URL matches inside text content
+  if (data.type !== 'image') {
+    const targetBubble = msgDiv.querySelector('.bubble');
+    if (targetBubble) {
+      setTimeout(() => appendLinkPreviews(decryptedMsg, targetBubble), 10);
+    }
   }
 
   if (prepend) {
@@ -1984,4 +1998,96 @@ if (logoutBtn) {
       alert("Error logging out: " + err.message);
     }
   });
+}
+
+// 📑 1. Rich Text Markdown Parser Engine
+function parseMarkdown(text) {
+  if (!text) return "";
+  
+  // Escape HTML tags to protect against injection exploits
+  let safeText = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Regex rules targeting Markdown formatting markers
+  // ***text*** -> Bold + Italic
+  safeText = safeText.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  
+  // **text** -> Bold
+  safeText = safeText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  
+  // *text* -> Italic
+  safeText = safeText.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  return safeText;
+}
+
+// 🔗 Rich Link Preview Fetcher Engine (Fetches Metadata & Images)
+async function appendLinkPreviews(text, containerElement) {
+  if (!text) return;
+
+  // Regex scan for http/https links
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const matches = text.match(urlRegex);
+  if (!matches) return;
+
+  const targetUrl = matches[0];
+
+  try {
+    const urlObj = new URL(targetUrl);
+    const fallbackDomain = urlObj.hostname.replace('www.', '');
+
+    // Create a temporary container layout shell
+    const card = document.createElement('a');
+    card.className = 'link-preview-card';
+    card.href = targetUrl;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    containerElement.appendChild(card);
+
+    // Fetch official Open Graph tags using Microlink's free public tier
+    const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}`);
+    const json = await response.json();
+
+    if (json.status === 'success' && json.data) {
+      const metadata = json.data;
+      
+      const title = metadata.title || `${fallbackDomain} Resource`;
+      const description = metadata.description || "Click to visit this web link endpoint destination securely.";
+      const imageUrl = metadata.image ? metadata.image.url : "";
+
+      card.innerHTML = `
+        ${imageUrl ? `
+          <div class="preview-image-container">
+            <img src="${imageUrl}" alt="link preview preview banner">
+          </div>
+        ` : ''}
+        <div class="preview-text-content">
+          <span class="preview-title">${title}</span>
+          <span class="preview-domain"><i class="fa-solid fa-link" style="font-size:0.7rem; margin-right:4px;"></i>${fallbackDomain}</span>
+          <span class="preview-description">${description}</span>
+        </div>
+      `;
+    } else {
+      throw new Error("Metadata request missing structural payload");
+    }
+
+  } catch (err) {
+    console.warn("Rich preview fetch failure, drawing local safety card fallback structure:", err);
+    
+    // Safety Minimal Layout Fallback structure if site actively blocks scraping bots
+    const card = containerElement.querySelector('.link-preview-card');
+    if (card) {
+      const urlObj = new URL(targetUrl);
+      const fallbackDomain = urlObj.hostname.replace('www.', '');
+      card.innerHTML = `
+        <div class="preview-text-content">
+          <span class="preview-title">Visit External Resource Link</span>
+          <span class="preview-domain"><i class="fa-solid fa-link" style="font-size:0.7rem; margin-right:4px;"></i>${fallbackDomain}</span>
+          <span class="preview-description">Click path details: ${targetUrl}</span>
+        </div>
+      `;
+    }
+  }
 }
