@@ -18,7 +18,9 @@ const firebaseConfig = {
   projectId: "yappapp-8031b",
   storageBucket: "yappapp-8031b.firebasestorage.app",
   messagingSenderId: "221465604909",
-  appId: "1:221465604909:web:4fddfa24a0620986ab59a4"
+  appId: "1:221465604909:web:4fddfa24a0620986ab59a4",
+  // 🟢 ADD THIS LINE BELOW TO FIX THE REGION MISMATCH:
+  databaseURL: "https://yappapp-8031b-default-rtdb.europe-west1.firebasedatabase.app"
 };
 
 // 2. INITIALIZE FIREBASE FIRST
