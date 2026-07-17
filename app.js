@@ -417,30 +417,25 @@ let currentPresenceState = "online";
 function resetPresenceTimers() {
   if (!currentUser) return;
 
-  // 1. If we are currently marked Idle or Offline on the client, bring us back online instantly
   if (currentPresenceState !== "online") {
     currentPresenceState = "online";
     updateDoc(doc(db, "users", currentUser), { status: userSelectedStatus }).catch(()=>{});
   }
 
-  // 2. Clear existing timeouts
   if (idleTimer) clearTimeout(idleTimer);
   if (offlineTimer) clearTimeout(offlineTimer);
 
-  // 3. Mark "idle" after 5 Minutes of zero viewport interaction
   idleTimer = setTimeout(() => {
     currentPresenceState = "idle";
     updateDoc(doc(db, "users", currentUser), { status: "idle" }).catch(()=>{});
   }, 300000); 
 
-  // 4. Mark completely "offline" after 1 Hour (3,600,000 ms) of total inactivity
   offlineTimer = setTimeout(() => {
     currentPresenceState = "offline";
     updateDoc(doc(db, "users", currentUser), { status: "offline" }).catch(()=>{});
   }, 3600000);
 }
 
-// Attach listeners across all logical user interaction interfaces
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
   document.addEventListener(evt, resetPresenceTimers, true);
 });
@@ -696,9 +691,9 @@ async function isUsernameTaken(targetUsername) {
   return !querySnapshot.empty;
 }
 
-// ========================================================
+// ==========================================
 // 🔑 AUTHENTICATION & PERSISTENCE
-// ========================================================
+// ==========================================
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user.uid;
@@ -722,29 +717,6 @@ onAuthStateChanged(auth, async (user) => {
           await updateDoc(doc(db, "users", currentUser), { status: userSelectedStatus });
         } catch (err) {
           console.warn("Status update skipped:", err);
-        }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const isDesktop = urlParams.get('platform') === 'desktop';
-
-        if (isDesktop) {
-          const loaderText = document.querySelector('#login-loader h2');
-          if (loaderText) {
-            loaderText.innerHTML = `
-              <span style="color: #2ecc71; font-size: 1.5rem;"><i class="fa-solid fa-circle-check"></i></span><br>
-              Successfully authenticated!<br>
-              <span style="color: gray; font-size: 0.85rem;">Returning to YappApp Desktop...</span>
-            `;
-          }
-          
-          const idToken = await user.getIdToken();
-          window.location.href = `yappapp://auth-callback?token=${idToken}`;
-
-          setTimeout(() => {
-            window.close();
-          }, 1500);
-          
-          return; 
         }
 
         enterChatApp(photoURL);
@@ -780,16 +752,6 @@ onAuthStateChanged(auth, async (user) => {
           lastLogin: serverTimestamp()
         });
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const isDesktop = urlParams.get('platform') === 'desktop';
-
-        if (isDesktop) {
-          const idToken = await auth.currentUser.getIdToken();
-          window.location.href = `yappapp://auth-callback?token=${idToken}`;
-          setTimeout(() => window.close(), 1000);
-          return;
-        }
-
         enterChatApp(user.photoURL || "");
         hideLoaderWhenFullyLoaded();
       }
@@ -814,16 +776,18 @@ googleLoginBtn.addEventListener('click', async () => {
     return;
   }
 
-  const loaderText = document.querySelector('#login-loader h2');
-  if (loaderText) loaderText.innerText = "Redirecting to Google...";
-
-  loginScreen.classList.remove('active');
-  loginLoader.classList.add('active');
-
   try {
     const result = await signInWithPopup(auth, provider);
     console.log("✅ Popup login successful:", result.user.uid);
+    
+    const loaderText = document.querySelector('#login-loader h2');
+    if (loaderText) loaderText.innerText = "Redirecting to Google... ";
+
+    loginScreen.classList.remove('active');
+    loginLoader.classList.add('active');
+    
   } catch (error) {
+    console.error("Google Sign-In Failed:", error);
     alert("Google Sign-In Failed.");
     resetLoginButton();
     loginLoader.classList.remove('active');
@@ -1400,7 +1364,6 @@ function switchChat(type, target) {
     chatMessagesCache[target] = [];
   }
 
-  // 🟢 STEP 1: Render cached messages immediately
   messagesContainer.innerHTML = '';
   if (chatMessagesCache[target].length > 0) {
     renderLoadMoreButton(type === 'global' ? "global_messages" : "private_messages");
@@ -1413,7 +1376,6 @@ function switchChat(type, target) {
       const senderId = data.sender;
       const msgTime = data.createdAt ? (typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate().getTime() : new Date(data.createdAt).getTime()) : Date.now();
       
-      // Determine if consecutive: same sender AND within 3 minutes (180,000ms) AND not a system status message
       const isConsecutive = (lastSender === senderId) && (lastMsgTime && (msgTime - lastMsgTime < 180000)) && (data.type !== 'system');
 
       displayMessage(msg.data, msg.id, type === 'global' ? "global_messages" : "private_messages", false, isConsecutive);
@@ -1477,7 +1439,6 @@ function switchChat(type, target) {
 
     let hasPing = false, newMessagesCount = 0, lastMessageElement = null;
 
-    // 🟢 Track consecutive senders dynamically during full draw
     let lastSender = null;
     let lastMsgTime = null;
 
@@ -1573,7 +1534,6 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
   const senderName = data.senderDisplayName || data.sender;
   const isPing = !isYours && data.text && (data.text.includes(`@${currentUser}`) || data.text.includes(`@${currentDisplayName}`));
 
-  // 🟢 MERGE LOGIC: If consecutive, merge into the previous bubble box
   if (isConsecutive && !prepend) {
     const lastMessageElement = messagesContainer.lastElementChild;
     if (lastMessageElement && lastMessageElement.classList.contains('message')) {
@@ -1585,11 +1545,8 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
         if (data.type === 'image') {
           lineItem.innerHTML = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
         } else {
-          // 🟢 Pass text into Markdown Parser
           const plainText = decryptText(data.text);
           lineItem.innerHTML = `<span>${parseMarkdown(plainText)}</span>`;
-          
-          // 🟢 Scan and process links right onto the line layout
           setTimeout(() => appendLinkPreviews(plainText, lineItem), 10);
         }
         
@@ -1599,7 +1556,6 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     }
   }
 
-  // 🟢 DEFAULT LOGIC: Render a normal, fresh message bubble
   let timeString = "Sending...";
   if (data.createdAt) {
     const dateObj = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
@@ -1699,7 +1655,6 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     });
   }
 
-  // 🟢 Append preview cards if an external link URL matches inside text content
   if (data.type !== 'image') {
     const targetBubble = msgDiv.querySelector('.bubble');
     if (targetBubble) {
@@ -1985,13 +1940,9 @@ if (logoutBtn) {
       }
 
       killAllListeners();
-
       chatMessagesCache = {};
-
       await signOut(auth);
-
       settingsOverlay.classList.remove('active');
-      
       console.log("Logged out successfully. Custom local settings preserved.");
     } catch (err) {
       console.error("Logout failed:", err);
@@ -2004,20 +1955,13 @@ if (logoutBtn) {
 function parseMarkdown(text) {
   if (!text) return "";
   
-  // Escape HTML tags to protect against injection exploits
   let safeText = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // Regex rules targeting Markdown formatting markers
-  // ***text*** -> Bold + Italic
   safeText = safeText.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  
-  // **text** -> Bold
   safeText = safeText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  
-  // *text* -> Italic
   safeText = safeText.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
   return safeText;
@@ -2027,7 +1971,6 @@ function parseMarkdown(text) {
 async function appendLinkPreviews(text, containerElement) {
   if (!text) return;
 
-  // Regex scan for http/https links
   const urlRegex = /(https?:\/\/[^\s]+)/gi;
   const matches = text.match(urlRegex);
   if (!matches) return;
@@ -2038,7 +1981,6 @@ async function appendLinkPreviews(text, containerElement) {
     const urlObj = new URL(targetUrl);
     const fallbackDomain = urlObj.hostname.replace('www.', '');
 
-    // Create a temporary container layout shell
     const card = document.createElement('a');
     card.className = 'link-preview-card';
     card.href = targetUrl;
@@ -2046,7 +1988,6 @@ async function appendLinkPreviews(text, containerElement) {
     card.rel = 'noopener noreferrer';
     containerElement.appendChild(card);
 
-    // Fetch official Open Graph tags using Microlink's free public tier
     const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}`);
     const json = await response.json();
 
@@ -2076,7 +2017,6 @@ async function appendLinkPreviews(text, containerElement) {
   } catch (err) {
     console.warn("Rich preview fetch failure, drawing local safety card fallback structure:", err);
     
-    // Safety Minimal Layout Fallback structure if site actively blocks scraping bots
     const card = containerElement.querySelector('.link-preview-card');
     if (card) {
       const urlObj = new URL(targetUrl);
