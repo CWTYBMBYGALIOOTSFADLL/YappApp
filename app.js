@@ -128,6 +128,9 @@ let unsubscribeBgDM = null;
 let unsubscribeIncomingCalls = null;
 let unsubscribeSystem = null;
 
+// 🟢 Add this near the top with your other global variables
+let sidebarElement = null;
+
 let mutedChannels = JSON.parse(localStorage.getItem('yapp_muted_channels') || '[]');
 let unreadCounts = {};
 let loginSessionTime = 0;
@@ -801,6 +804,9 @@ googleLoginBtn.addEventListener('click', async () => {
 });
 
 function enterChatApp(photoURL = "") {
+  // 🟢 ADD THIS LINE HERE:
+  sidebarElement = document.querySelector('.sidebar');
+
   loginScreen.classList.remove('active');
   chatScreen.classList.add('active');
   loginSessionTime = Date.now();
@@ -1414,6 +1420,9 @@ async function updateHeaderUI() {
 cancelReplyBtn.addEventListener('click', () => { replyingTo = null; replyBanner.style.display = 'none'; });
 
 function switchChat(type, target) {
+  // 🟢 Slide the sidebar away on mobile after a selection is made
+  if (sidebarElement) sidebarElement.classList.remove('active');
+
   currentChatType = type; 
   currentChatTarget = target;
   
@@ -2158,3 +2167,26 @@ function resetPresenceTimers() {
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
   document.addEventListener(evt, resetPresenceTimers, true);
 });
+
+// 🟢 UPDATED TOGGLE ENGINE AT THE BOTTOM OF APP.JS
+const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+
+if (sidebarToggleBtn) {
+  sidebarToggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    console.log("test hi")
+    // Refresh the element reference if it wasn't caught yet
+    if (!sidebarElement) sidebarElement = document.querySelector('.sidebar');
+    
+    if (sidebarElement) {
+      sidebarElement.classList.toggle('active');
+    }
+  });
+
+  // Close the panel automatically if someone clicks outside of it
+  document.addEventListener('click', (e) => {
+    if (sidebarElement && !sidebarElement.contains(e.target) && sidebarElement.classList.contains('active')) {
+      sidebarElement.classList.remove('active');
+    }
+  });
+}

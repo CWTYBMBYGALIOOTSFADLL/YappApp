@@ -29,6 +29,7 @@
       --grayout-bg: #FFFFFF;
       --radius-sm: 10px;
       --app-font: 'Roboto Mono', monospace;
+      --danger: #e74c3c;
     }
 
     .message-form input:disabled,
@@ -178,13 +179,13 @@
 
     #chat-screen {
       display: none;
-      width: 100vw;         /* 🟢 Forces full viewport width instead of a static cap */
-      max-width: 100%;      /* 🟢 Overrides the previous 1700px boundary limit */
-      height: 100vh;        /* 🟢 Expands from 90vh to 100% full screen height */
-      margin: 0;            /* 🟢 Removes automatic margins */
+      width: 100vw;
+      max-width: 100%;
+      height: 100vh;
+      margin: 0;
       background-color: var(--darker-bg);
       overflow: hidden;
-      border: none;         /* 🟢 Optional: removes outer border frame for a borderless desktop feel */
+      border: none;
     }
 
     #chat-screen.active {
@@ -198,6 +199,7 @@
       display: flex;
       flex-direction: column;
       background-color: var(--darker-bg);
+      transition: margin-left 0.3s ease, transform 0.3s ease;
     }
 
     .sidebar-header {
@@ -458,22 +460,19 @@
       align-items: flex-end;
     }
 
-    /* 🟢 Merged consecutive bubble line styling */
     .bubble-line-item {
       display: block;
       position: relative;
-      margin-top: 8px; /* Gap between consecutive lines inside the same box */
+      margin-top: 8px;
       padding-top: 8px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05); /* Subtle dividing line */
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
       width: 100%;
     }
 
-    /* For your own bubbles, adjust divider color slightly */
     .message.yours .bubble-line-item {
       border-top: 1px solid rgba(0, 0, 0, 0.08);
     }
 
-    /* Ensure images inside a merged bubble scale cleanly and don't overflow */
     .bubble img {
       display: block;
       max-width: 350px;
@@ -485,22 +484,19 @@
       margin-top: 4px;
     }
 
-    /* consecutive message styling (Discord-style) */
     .message.consecutive {
-      margin-top: -6px !important; /* Pull consecutive bubbles closer together */
+      margin-top: -6px !important;
       margin-bottom: 2px !important;
     }
 
     .message.consecutive .sender-row {
-      display: none !important; /* Hide the duplicate username & timestamp row */
+      display: none !important;
     }
 
-    /* For other users (consecutive): smooth out the top corners of the bubbles */
     .message.consecutive:not(.yours) .bubble {
       border-top-left-radius: 4px !important;
     }
 
-    /* For your own consecutive messages: smooth out the top corners of the bubbles */
     .message.yours.consecutive .bubble {
       border-top-right-radius: 4px !important;
     }
@@ -1300,7 +1296,6 @@
       opacity: 0.9;
     }
 
-    /* 🔗 Rich Link Preview Card Layout */
     .link-preview-card {
       display: flex;
       flex-direction: column;
@@ -1375,6 +1370,228 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+
+    .header-left-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-right-cluster {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .sidebar-toggle-btn {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 5px 10px;
+      display: block;
+      transition: color 0.2s;
+    }
+
+    .sidebar-toggle-btn:hover {
+      color: var(--golden);
+    }
+
+    .sidebar.active {
+      margin-left: -280px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 280px;
+        height: 100vh;
+        z-index: 999;
+        background: var(--darker-bg);
+        box-shadow: 5px 0 25px rgba(0,0,0,0.6);
+        transition: left 0.3s ease;
+      }
+
+      .sidebar.active {
+        left: 0;
+        margin-left: 0;
+      }
+
+      #chat-screen {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+      }
+
+      .chat-area {
+        width: 100%;
+      }
+
+      .message-container {
+        padding: 16px 12px;
+        gap: 4px;
+      }
+
+      .chat-header {
+        padding: 12px 16px;
+      }
+
+      .message-form {
+        padding: 12px 16px;
+        gap: 8px;
+      }
+
+      .message {
+        max-width: 90%;
+      }
+
+      .bubble {
+        font-size: 0.9rem !important;
+        padding: 10px 14px !important;
+      }
+
+      .action-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+
+      .sender-name {
+        font-size: 0.75rem;
+      }
+
+      .timestamp {
+        font-size: 0.6rem;
+      }
+
+      .sidebar {
+        width: 250px;
+      }
+
+      .desktop-download-btn span {
+        display: none;
+      }
+
+      .shorts-panel {
+        display: none !important;
+      }
+
+      .chat-header {
+        flex-wrap: wrap;
+      }
+
+      #current-chat-title {
+        font-size: 1rem;
+      }
+
+      .channel-img {
+        width: 24px;
+        height: 24px;
+      }
+
+      .sidebar-toggle-btn {
+        display: block;
+      }
+
+      .modal {
+        width: 90%;
+        max-width: 400px;
+        padding: 20px;
+      }
+
+      #call-overlay .modal {
+        width: 95vw;
+        max-width: 95vw;
+      }
+
+      #video-grid {
+        height: 400px;
+        min-height: 400px;
+      }
+
+      .message-form textarea {
+        font-size: 0.95rem;
+      }
+
+      #send-btn {
+        padding: 0 20px;
+        font-size: 0.9rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .sidebar {
+        width: 220px;
+      }
+
+      .message-container {
+        padding: 12px 8px;
+      }
+
+      .message {
+        max-width: 95%;
+      }
+
+      .bubble img {
+        max-width: 280px;
+        max-height: 280px;
+      }
+
+      .action-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+      }
+
+      .header-right-cluster {
+        gap: 10px;
+      }
+
+      #send-btn {
+        padding: 0 16px;
+        font-size: 0.85rem;
+      }
+
+      .chat-header {
+        padding: 10px 12px;
+      }
+
+      .message-form {
+        padding: 10px 12px;
+        gap: 6px;
+      }
+
+      #current-chat-title {
+        font-size: 0.9rem;
+      }
+
+      .channel-img {
+        width: 20px;
+        height: 20px;
+      }
+
+      .modal {
+        width: 95%;
+        padding: 15px;
+      }
+
+      .message-form textarea {
+        max-height: 120px;
+      }
+
+      .bubble img {
+        max-width: 250px;
+        max-height: 250px;
+      }
+
+      .reaction-badge {
+        font-size: 0.9rem;
+        padding: 3px 8px;
+      }
+    }
   </style>
 
 </head>
@@ -1444,15 +1661,20 @@
 
     <main class="chat-area">
       <header class="chat-header">
-        <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
+        <div class="header-left-cluster">
+          <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" title="Toggle Side Panel">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <h2 id="current-chat-title"><img src="general.png" class="channel-img"> general</h2>
+        </div>
 
-        <button id="desktop-download-btn" class="desktop-download-btn">
-          <i class="fa-brands fa-windows"></i>
-          <span>Download Desktop App</span>
-        </button>
+        <div class="header-right-cluster">
+          <button id="desktop-download-btn" class="desktop-download-btn">
+            <i class="fa-brands fa-windows"></i>
+            <span>Download Desktop App</span>
+          </button>
 
-        <div style="display: flex; align-items: center; gap: 15px;">
-          <div id="call-btn" title="Start Call Session" style="display: block; cursor: pointer; font-size: 1.2rem; color: #2ecc71; transition: 0.2s; margin-right: 5px;">
+          <div id="call-btn" title="Start Call Session" style="display: block; cursor: pointer; font-size: 1.2rem; color: #2ecc71; transition: 0.2s;">
             <i class="fa-solid fa-phone"></i>
           </div>
 
@@ -1560,13 +1782,10 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      // 1. Core State
       let textHistory = "";
       let repeatCount = 1;
       let isLocalMute = false;
       let localMuteTimer = null;
-      
-      // Image state
       let loadedImagesInWindow = [];
 
       const form = document.getElementById("message-form");
@@ -1575,7 +1794,6 @@
       const attachButton = document.getElementById("attach-btn");
       const fileInputElement = document.getElementById("file-input");
 
-      // 2. Levenshtein Distance & Similarity Calculator
       const getSimilarityRatio = (str1, str2) => {
         const s1 = str1.toLowerCase().trim();
         const s2 = str2.toLowerCase().trim();
@@ -1591,9 +1809,9 @@
           for (let i = 1; i <= s1.length; i += 1) {
             const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
             track[j][i] = Math.min(
-              track[j][i - 1] + 1, // deletion
-              track[j - 1][i] + 1, // insertion
-              track[j - 1][i - 1] + indicator // substitution
+              track[j][i - 1] + 1,
+              track[j - 1][i] + 1,
+              track[j - 1][i - 1] + indicator
             );
           }
         }
@@ -1603,7 +1821,6 @@
         return (maxLength - distance) / maxLength;
       };
 
-      // 3. Mute Trigger Logic
       const applyLocalMute = (seconds, callback) => {
         isLocalMute = true;
         textInput.disabled = true;
@@ -1632,7 +1849,6 @@
         }, 1000);
       };
 
-      // 4. Form Submission Interceptor
       form.addEventListener("submit", (e) => {
         if (isLocalMute) {
           e.preventDefault();
@@ -1643,7 +1859,6 @@
         const currentText = textInput.value.trim();
         if (!currentText) return;
 
-        // If similarity is 80% or greater, we treat it as a duplicate
         const similarity = getSimilarityRatio(currentText, textHistory);
         
         if (similarity >= 0.80) {
@@ -1653,7 +1868,6 @@
           textHistory = currentText;
         }
 
-        // Progressive Action Rules
         if (repeatCount === 5) {
           e.preventDefault();
           e.stopImmediatePropagation();
@@ -1671,20 +1885,17 @@
           textInput.value = "";
           alert("❌ You have been disconnected for spamming similar messages.");
           
-          // Trigger the program's physical logout routine cleanly
           const logOutBtn = document.getElementById("logout-btn");
           if (logOutBtn) logOutBtn.click();
           return;
         }
-      }, true); // Capture phase overrides module listener
+      }, true);
 
-      // 5. Image Upload Rate Limiting
       fileInputElement.addEventListener("change", (e) => {
         const filesSelected = Array.from(e.target.files);
         if (filesSelected.length === 0) return;
 
         const now = Date.now();
-        // Clean old timestamps out of window (15 seconds)
         loadedImagesInWindow = loadedImagesInWindow.filter(time => now - time < 15000);
 
         const proposedTotal = loadedImagesInWindow.length + filesSelected.length;
@@ -1692,12 +1903,11 @@
         if (proposedTotal > 3) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          fileInputElement.value = ""; // Empty queue
+          fileInputElement.value = "";
           alert("❌ Upload limit exceeded! You can only post up to 3 images every 15 seconds.");
           return;
         }
 
-        // Add timestamps for successful files passing validation
         for (let i = 0; i < filesSelected.length; i++) {
           loadedImagesInWindow.push(now);
         }
