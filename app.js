@@ -2421,3 +2421,24 @@ window.selectR34Image = async function(imageUrl) {
   await sendPayloadToDatabase("", imageUrl, "image");
   console.log("✅ Image sent");
 };
+
+// IMPROVED UNIVERSAL IMAGE ZOOM
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('img');
+  if (!img) return;
+
+  // Skip small icons, avatars, emojis, etc.
+  if (img.src.includes('avatar') || 
+      img.src.includes('defaultuser') || 
+      img.width < 80) return;
+
+  // Open in viewer
+  if (viewerOverlay && viewerImg) {
+    viewerImg.src = img.src;
+    zoomScale = 1;
+    panX = 0;
+    panY = 0;
+    updateViewerTransform();
+    viewerOverlay.style.display = 'flex';
+  }
+});
