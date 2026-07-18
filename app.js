@@ -1633,7 +1633,7 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
   const senderName = data.senderDisplayName || data.sender;
   const isPing = !isYours && data.text && (data.text.includes(`@${currentUser}`) || data.text.includes(`@${currentDisplayName}`));
 
-  // 1. Handle Consecutive Messages (Messages grouped together from the same sender)
+  // 1. Handle Consecutive Messages (Line items)
   if (isConsecutive && !prepend) {
     const lastMessageElement = messagesContainer.lastElementChild;
     if (lastMessageElement && lastMessageElement.classList.contains('message')) {
@@ -1645,7 +1645,7 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
         if (data.type === 'image') {
           lineItem.innerHTML = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
         } else if (data.type === 'video') {
-          // 🟢 Added consecutive video rendering
+          // 🟢 Video support for consecutive messages
           lineItem.innerHTML = `<video src="${data.imageUrl}" controls style="max-width: 350px; border-radius: var(--radius-sm); margin-top: 4px;"></video>`;
         } else {
           const plainText = decryptText(data.text);
@@ -1659,49 +1659,118 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     }
   }
 
-  // 2. Handle Standalone / New Messages
+  let timeString = "Sending...";
+  if (data.createdAt) {
+    const dateObj = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
+    timeString = dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
   const msgDiv = document.createElement('div');
   msgDiv.classList.add('message');
-  
-  if (isYours) {
-    msgDiv.classList.add('yours');
+  if (isYours) msgDiv.classList.add('yours');
+  if (data.type === 'image' || data.type === 'video') msgDiv.classList.add('image-message'); 
+
+  // Reply snippet handling (Updated to handle videos)
+  let quotedHtml = "";
+  if (data.replyTo) {
+    let replySnippet = "";
+    if (data.replyTo.type === 'image') {
+      replySnippet = '[Image]';
+    } else if (data.replyTo.type === 'video') {
+      replySnippet = '[Video]';
+    } else {
+      replySnippet = decryptText(data.replyTo.text) || data.replyTo.text;
+    }
+    quotedHtml = `<div class="quoted-reply"><i class="fa-solid fa-reply" style="margin-right: 4px;"></i> Replying to <strong>@${data.replyTo.senderName}</strong>: ${replySnippet}</div>`;
   }
 
-  if (data.type === 'image' || data.type === 'video') {
-    msgDiv.classList.add('image-message');
-  }
-
-  msgDiv.dataset.id = docId;
-
-  const decryptedMsg = data.text ? decryptText(data.text) : "";
-  
-  // Choose correct content payload: image vs video vs text markdown
-  let contentHtml = '';
+  // 🟢 Payload generation (Image vs Video vs Text)
+  let contentHtml = "";
   if (data.type === 'image') {
-    contentHtml = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
+    contentHtml = `<img src="${data.imageUrl}" alt="image">`;
   } else if (data.type === 'video') {
     contentHtml = `<video src="${data.imageUrl}" controls style="max-width: 350px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);"></video>`;
   } else {
-    contentHtml = `<span class="text-content-node">${parseMarkdown(decryptedMsg)}</span>`;
+    contentHtml = `<span>${parseMarkdown(decryptText(data.text))}</span>`;
   }
 
-  // Controls name alignment: Left for videos, normal layout for everything else
-  const nameAlignment = (data.type === 'video') ? 'text-align: left;' : (isYours ? 'text-align: right;' : 'text-align: left;');
+  // Reactions generation
+  let reactionsDisplayHtml = `<div class="reactions-display">`;
+  const emojiCounts = {}; const userReactedObj = {};
+  Object.entries(data.reactions || {}).forEach(([uid, emoji]) => {
+    emojiCounts[emoji] = (emojiCounts[emoji] || 0) + 1;
+    if (uid === currentUser) userReactedObj[emoji] = true;
+  });
 
+  Object.entries(emojiCounts).forEach(([emoji, count]) => {
+    reactionsDisplayHtml += `<div class="reaction-badge ${userReactedObj[emoji] ? 'active' : ''}" data-emoji="${emoji}">${emoji} <span style="margin-left: 2px;">${count}</span></div>`;
+  });
+  reactionsDisplayHtml += `</div>`;
+
+  const decryptedMsg = decryptText(data.text);
+
+  // 🟢 YOUR ORIGINAL HTML STRUCTURE WITH ALL ACTION BUTTONS RESTORED
   msgDiv.innerHTML = `
-    <div class="sender-row" style="${nameAlignment}">
-      <span class="sender-name">${senderName}</span>
-    </div>
-    <div class="message-bubble-wrapper">
-      <div class="avatar-box">
-        <img src="${data.senderPhotoURL || DEFAULT_AVATAR}" class="message-avatar" alt="avatar">
+    <div class="message-content-wrapper">
+      <div class="sender-row" style="${isYours ? 'margin-right: 4px;' : 'margin-left: 4px;'}">
+        <span class="sender-name">${senderName}</span><span class="timestamp">${timeString}</span>
       </div>
-      <div class="bubble ${isPing ? 'mentioned' : ''}">
-        ${contentHtml}
+      <div class="message-bubble-wrapper">
+        <div class="avatar-box">
+          <img src="${data.senderPhotoURL || DEFAULT_AVATAR}" class="message-avatar" alt="avatar">
+        </div>
+
+        <div class="bubble ${isPing ? 'mentioned' : ''}">
+          ${quotedHtml}
+          ${contentHtml}
+        </div>
+
+        <div class="msg-actions">
+          <div class="msg-action-btn reply-btn" title="Reply"><i class="fa-solid fa-reply"></i></div>
+          <div class="msg-action-btn add-reaction-btn" title="React"><i class="fa-regular fa-face-smile"></i></div>
+          ${isYours ? `<button class="msg-action-btn delete-btn" data-id="${docId}" title="Delete" style="border:none;"><i class="fa-solid fa-trash"></i></button>` : ''}
+        </div>
       </div>
+      <div class="reactions-container" style="${isYours ? 'margin-right: 48px;' : 'margin-left: 48px;'}">${reactionsDisplayHtml}</div>
     </div>
   `;
 
+  // --- BUTTON EVENT LISTENERS ---
+  msgDiv.querySelector('.reply-btn').addEventListener('click', () => {
+    replyingTo = { messageId: docId, senderName: senderName, text: data.text || "", type: data.type };
+    replyToName.innerText = senderName;
+    replyToText.innerText = data.type === 'image' ? '[Image attached]' : (data.type === 'video' ? '[Video attached]' : decryptText(data.text));
+    replyBanner.style.display = 'flex'; messageInput.focus();
+  });
+
+  const addReactionBtn = msgDiv.querySelector('.add-reaction-btn');
+  addReactionBtn.addEventListener('click', (e) => {
+    isInputEmojiTarget = false; 
+    targetReactionMessageId = docId; 
+    targetReactionCollection = collectionName;
+    
+    const rect = addReactionBtn.getBoundingClientRect();
+    emojiPickerWrapper.style.display = 'block';
+    emojiPickerWrapper.style.top = `${(rect.top - 350 < 0) ? rect.bottom + 10 : rect.top - 350}px`;
+    emojiPickerWrapper.style.left = `${Math.max(10, rect.left - 150)}px`;
+  });
+
+  msgDiv.querySelectorAll('.reaction-badge').forEach(badge => {
+    badge.addEventListener('click', async () => {
+      const selectedEmoji = badge.getAttribute('data-emoji');
+      const currentReactions = data.reactions || {};
+      if (currentReactions[currentUser] === selectedEmoji) delete currentReactions[currentUser]; else currentReactions[currentUser] = selectedEmoji;
+      try { await updateDoc(doc(db, collectionName, docId), { reactions: currentReactions }); } catch (err) {}
+    });
+  });
+
+  if (isYours) {
+    msgDiv.querySelector('.delete-btn').addEventListener('click', async () => {
+      try { await deleteDoc(doc(db, collectionName, docId)); } catch (err) {}
+    });
+  }
+
+  // --- RENDER INJECTION ---
   if (prepend) {
     const loadBtn = document.getElementById('load-more-btn');
     if (loadBtn && loadBtn.nextSibling) messagesContainer.insertBefore(msgDiv, loadBtn.nextSibling);
@@ -1710,8 +1779,12 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     messagesContainer.appendChild(msgDiv);
   }
 
+  // Link Preview Trigger
   if (data.type !== 'image' && data.type !== 'video' && decryptedMsg) {
-    setTimeout(() => appendLinkPreviews(decryptedMsg, msgDiv.querySelector('.bubble')), 10);
+    const targetBubble = msgDiv.querySelector('.bubble');
+    if (targetBubble) {
+      setTimeout(() => appendLinkPreviews(decryptedMsg, targetBubble), 10);
+    }
   }
 
   return msgDiv;
