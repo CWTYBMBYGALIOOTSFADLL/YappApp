@@ -1689,14 +1689,27 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     quotedHtml = `<div class="quoted-reply"><i class="fa-solid fa-reply" style="margin-right: 4px;"></i> Replying to <strong>@${data.replyTo.senderName}</strong>: ${replySnippet}</div>`;
   }
 
-  // 🟢 Payload generation (Image vs Video vs Text)
+    // 🟢 Payload generation (Image vs Video vs Text)
   let contentHtml = "";
+  
   if (data.type === 'image') {
-    contentHtml = `<img src="${data.imageUrl}" alt="image">`;
-  } else if (data.type === 'video') {
-    contentHtml = `<video src="${data.imageUrl}" controls style="max-width: 350px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);"></video>`;
-  } else {
-    contentHtml = `<span>${parseMarkdown(decryptText(data.text))}</span>`;
+    contentHtml = `
+      <img src="${data.imageUrl}" 
+           alt="Rule34 image" 
+           style="max-width: 100%; border-radius: var(--radius-sm); cursor: zoom-in; display: block;">
+    `;
+  } 
+  else if (data.type === 'video') {
+    contentHtml = `
+      <video src="${data.imageUrl}" 
+             controls 
+             style="max-width: 100%; border-radius: var(--radius-sm); background: #000;">
+      </video>
+    `;
+  } 
+  else {
+    const plainText = decryptText(data.text);
+    contentHtml = `<span>${parseMarkdown(plainText)}</span>`;
   }
 
   // Reactions generation
@@ -1796,6 +1809,13 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
 }
 
 async function sendPayloadToDatabase(textContent, imageUrlContent, payloadType) {
+  // Add this guard
+  if (payloadType === "image" && !imageUrlContent) {
+    console.error("Attempted to send image with undefined URL");
+    alert("Image URL is missing. Try again.");
+    return;
+  }
+
   let senderPhoto = cachedUserData ? (cachedUserData.photoURL || "") : (auth.currentUser.photoURL || "");
   
   const payload = {
@@ -1865,14 +1885,26 @@ messageForm.addEventListener('submit', async (e) => {
   }
 
   if (isSpamBlocked) return;
+
   const text = messageInput.value.trim(); 
   if (!text) return;
 
+  // === SLASH COMMAND CHECK ===
+  if (text.startsWith('/r34')) {
+    const handled = await handleR34Command(text);
+    if (handled) {
+      messageInput.value = '';
+      return;
+    }
+  }
+
+  // Normal message flow (anti-spam + send)
   const now = Date.now();
   recentMessageTimestamps = recentMessageTimestamps.filter(time => now - time < 5000);
   recentMessageTimestamps.push(now);
 
-  if (text.toLowerCase() === lastSentMessageText.toLowerCase()) duplicateMessageCount++; else duplicateMessageCount = 1;
+  if (text.toLowerCase() === lastSentMessageText.toLowerCase()) duplicateMessageCount++; 
+  else duplicateMessageCount = 1;
   lastSentMessageText = text;
 
   let penalizeTime = 0, penaltyReason = "";
@@ -1882,16 +1914,33 @@ messageForm.addEventListener('submit', async (e) => {
   if (penalizeTime > 0) {
     isSpamBlocked = true;
     const originalPlaceholder = messageInput.placeholder;
-    messageInput.disabled = true; document.getElementById('send-btn').disabled = true; attachBtn.style.pointerEvents = "none"; messageInput.value = "";
+    messageInput.disabled = true; 
+    document.getElementById('send-btn').disabled = true; 
+    attachBtn.style.pointerEvents = "none"; 
+    messageInput.value = "";
+
     let secondsLeft = penalizeTime / 1000;
     messageInput.placeholder = `You're muted: ${penaltyReason} (${secondsLeft}s left)`;
-    const jailTimer = setInterval(() => { secondsLeft--; if (secondsLeft > 0) messageInput.placeholder = `You're muted: ${penaltyReason} (${secondsLeft}s left)`; }, 1000);
+    
+    const jailTimer = setInterval(() => { 
+      secondsLeft--; 
+      if (secondsLeft > 0) messageInput.placeholder = `You're muted: ${penaltyReason} (${secondsLeft}s left)`; 
+    }, 1000);
+
     setTimeout(() => {
-      clearInterval(jailTimer); isSpamBlocked = false; messageInput.disabled = false; document.getElementById('send-btn').disabled = false; attachBtn.style.pointerEvents = "auto";
-      messageInput.placeholder = originalPlaceholder; recentMessageTimestamps = []; duplicateMessageCount = 0; lastSentMessageText = "";
+      clearInterval(jailTimer); 
+      isSpamBlocked = false; 
+      messageInput.disabled = false; 
+      document.getElementById('send-btn').disabled = false; 
+      attachBtn.style.pointerEvents = "auto";
+      messageInput.placeholder = originalPlaceholder; 
+      recentMessageTimestamps = []; 
+      duplicateMessageCount = 0; 
+      lastSentMessageText = "";
     }, penalizeTime);
     return;
   }
+
   messageInput.value = '';
   messageInput.style.height = '50px'; 
   sendPayloadToDatabase(text, null, "text");
@@ -2268,3 +2317,107 @@ const refreshBtn = document.getElementById("refresh-status-btn");
           }
         });
       }
+
+// ====================== RULE34 SLASH COMMAND ======================
+
+const R34_API_KEY = "a49981a32936e8218971983ce5b1f216f574f84fec555fe13eb66674a8bc10194dd0c8a053284c6eb14817879a459552cbd54469a880fce1aca54486e9e2ce2d";
+const R34_USER_ID = "6529933";   // usually 2 or your number
+
+// ====================== RULE34 SLASH COMMAND WITH PAGINATION ======================
+let currentR34Page = 0;
+let currentR34Tags = "";
+
+async function handleR34Command(text) {
+  const match = text.match(/^\/r34\s+(.+)$/i);
+  if (!match) return false;
+
+  currentR34Tags = match[1].trim();
+  currentR34Page = 0;
+
+  if (!currentR34Tags) {
+    alert("Usage: /r34 big_boobs");
+    return true;
+  }
+
+  await loadR34Results();
+  return true;
+}
+
+async function loadR34Results() {
+  const originalPlaceholder = messageInput.placeholder;
+  messageInput.placeholder = `Loading page ${currentR34Page + 1}...`;
+  messageInput.disabled = true;
+
+  try {
+    const apiUrl = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=5&pid=${currentR34Page}&tags=${encodeURIComponent(currentR34Tags)}&api_key=${R34_API_KEY}&user_id=${R34_USER_ID}`;
+
+    const response = await fetch(apiUrl);
+    const posts = await response.json();
+
+    if (!posts || posts.length === 0) {
+      alert("No more results.");
+      return;
+    }
+
+    let html = `
+      <div style="margin: 12px 0; padding: 12px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;">
+        <strong>Page ${currentR34Page + 1} — Choose image (${currentR34Tags})</strong><br><br>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">`;
+
+    posts.forEach((post, i) => {
+      const fullUrl = post.file_url || post.sample_url || post.preview_url;
+      const thumb = post.preview_url || fullUrl;
+      if (!fullUrl) return;
+
+      html += `
+        <div onclick="selectR34Image('${fullUrl}')" 
+             style="cursor:pointer; border:2px solid #444; border-radius:8px; overflow:hidden; background:#000;">
+          <img src="${thumb}" style="width:100%; height:220px; object-fit:cover;">
+          <div style="padding:6px; text-align:center; background:#222; font-size:0.85rem;">
+            ${i + 1}
+          </div>
+        </div>`;
+    });
+
+    html += `
+        </div>
+        <div style="margin-top: 12px; text-align: center;">
+          <button onclick="loadNextR34Page()" 
+                  style="padding:8px 16px; background:#a3b3ff; color:black; border:none; border-radius:6px; cursor:pointer;">
+            Next Page →
+          </button>
+        </div>
+      </div>`;
+
+    // Add to chat
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    messagesContainer.appendChild(tempDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load results.");
+  } finally {
+    messageInput.placeholder = originalPlaceholder;
+    messageInput.disabled = false;
+  }
+}
+
+window.loadNextR34Page = function() {
+  currentR34Page++;
+  // Remove old selection UI
+  document.querySelectorAll('#messages > div').forEach(div => {
+    if (div.textContent.includes("Choose image")) div.remove();
+  });
+  loadR34Results();
+};
+
+window.selectR34Image = async function(imageUrl) {
+  document.querySelectorAll('#messages > div').forEach(div => {
+    if (div.textContent.includes("Choose image")) div.remove();
+  });
+
+  await sendPayloadToDatabase("", imageUrl, "image");
+  console.log("✅ Image sent");
+};
