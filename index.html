@@ -1099,6 +1099,34 @@
       margin-left: -280px;
     }
 
+    /* 🟢 BASE DESKTOP RIGHT CLUSTER STYLING */
+    .header-right-cluster {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 15px;
+      margin-left: auto;
+    }
+
+    .desktop-download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background-color: var(--dark-bg);
+      color: var(--text-color);
+      border: 1.5px solid var(--border);
+      border-radius: 50px;
+      padding: 8px 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      height: 38px;
+      transition: background-color 0.2s, border-color 0.2s;
+      user-select: none;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         position: fixed;
@@ -1123,7 +1151,7 @@
         width: 38px;
         height: 38px;
         display: flex !important;
-        transform: translateY(0px); /* 🟢 Clear test transform offsets */
+        transform: translateY(0px);
       }
 
       .chat-header {
@@ -1151,8 +1179,7 @@
       }
 
       .header-right-cluster {
-        gap: 8px;
-        margin-left: auto;
+        gap: 12px;
       }
 
       .desktop-download-btn {
@@ -1196,12 +1223,12 @@
 
     @media (max-width: 480px) {
       .sidebar-toggle-btn.message-space-toggle {
-        top: 76px; /* 🟢 Balanced safely underneath mobile locked top bar headers */
+        top: 76px;
         left: 10px;
         width: 36px;
         height: 36px;
         font-size: 1.1rem;
-        transform: translateY(0px); /* 🟢 Perfectly aligned natively inside container frame bounds */
+        transform: translateY(0px);
       }
 
       .message {
@@ -1253,8 +1280,24 @@
         font-size: 0.95rem;
       }
 
+      /* 🟢 FIXED MOBILE HEADERS ROW STABILITY */
+      .chat-header > div:last-child {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
       .header-right-cluster {
-        gap: 10px;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        gap: 12px !important;
+        margin-left: auto !important;
+      }
+
+      .desktop-download-btn {
+        display: none !important; /* Forces total compression removal on phone sizes */
       }
 
       #send-btn {
