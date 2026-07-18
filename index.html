@@ -1366,6 +1366,28 @@
       border: 1.5px solid var(--border);
     }
 
+/* Style the button container for hover/clicks */
+    #refresh-status-btn:hover {
+      color: var(--golden) !important;
+    }
+    
+    #refresh-status-btn:active {
+      transform: scale(0.9);
+      transition: transform 0.1s ease;
+    }
+
+    /* 🟢 Target the icon directly for the infinite rotation */
+    #refresh-status-btn i.spinning-loader {
+      animation: spinForever 1s linear infinite !important;
+      color: var(--golden) !important;
+      display: inline-block; /* Required for icons to rotate correctly */
+    }
+
+    @keyframes spinForever {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     video {
       min-height: 0;
       display: block;
@@ -1430,7 +1452,12 @@
           <img src="gooning.png" class="channel-img"> gooning <span class="notif-badge" id="badge-gooning"></span>
         </div>
       </div>
-      <h3>direct messages</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin: 24px 0 12px 0;">
+        <h3 style="margin: 0;">direct messages</h3>
+        <button id="refresh-status-btn" title="Refresh Statuses" style="background: none; border: none; color: var(--grayout-bg); cursor: pointer; font-size: 0.9rem; transition: color 0.2s, transform 0.2s;">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
       <div class="user-list" id="user-list"></div>
     </aside>
 

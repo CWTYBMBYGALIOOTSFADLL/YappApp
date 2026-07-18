@@ -2190,3 +2190,30 @@ if (sidebarToggleBtn) {
     }
   });
 }
+
+const refreshBtn = document.getElementById("refresh-status-btn");
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", async () => {
+          const icon = refreshBtn.querySelector("i");
+          
+          // 🟢 Start the spinning animation
+          icon.classList.add("spinning-loader");
+          
+          try {
+            // Check if your status function exists and await its database call completion
+            if (typeof window.loadUsers === "function") {
+              await window.loadUsers(); 
+            } else if (typeof loadUsers === "function") {
+              await loadUsers();
+            } else {
+              // Fake fallback delay if the background function isn't fully async yet
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          } catch (error) {
+            console.error("Failed to sync statuses:", error);
+          } finally {
+            // 🟢 Stop the animation when the load finishes (or fails)
+            icon.classList.remove("spinning-loader");
+          }
+        });
+      }
