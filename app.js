@@ -530,12 +530,17 @@ async function processFilesForUpload(files) {
   }
 
   for (const file of files) {
-    if (!file.type.startsWith('image/')) {
-      alert(`❌ "${file.name}" is not a valid image file.`);
+    const isVideo = file.type.startsWith('video/');
+    
+    // 🟢 Checks if it's an image OR a video before allowing it through
+    if (!file.type.startsWith('image/') && !isVideo) {
+      alert(`❌ "${file.name}" is not a valid image or video file.`);
       return;
     }
-    if (file.size > 33554432) {
-      alert(`❌ "${file.name}" is too big. 32MB max per image.`);
+    
+    // 🟢 Bumped the file size limit up to 50MB so videos don't get rejected for being too large
+    if (file.size > 52428800) {
+      alert(`❌ "${file.name}" is too big. 50MB max per file.`);
       return;
     }
   }
@@ -1656,7 +1661,16 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
 
   // 2. Handle Standalone / New Messages
   const msgDiv = document.createElement('div');
-  msgDiv.classList.add('message', isYours ? 'sent' : 'received');
+  msgDiv.classList.add('message');
+  
+  if (isYours) {
+    msgDiv.classList.add('yours');
+  }
+
+  if (data.type === 'image' || data.type === 'video') {
+    msgDiv.classList.add('image-message');
+  }
+
   msgDiv.dataset.id = docId;
 
   const decryptedMsg = data.text ? decryptText(data.text) : "";
@@ -1666,18 +1680,25 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
   if (data.type === 'image') {
     contentHtml = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
   } else if (data.type === 'video') {
-    // 🟢 Added standard video player payload
     contentHtml = `<video src="${data.imageUrl}" controls style="max-width: 350px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);"></video>`;
   } else {
     contentHtml = `<span class="text-content-node">${parseMarkdown(decryptedMsg)}</span>`;
   }
 
+  // Controls name alignment: Left for videos, normal layout for everything else
+  const nameAlignment = (data.type === 'video') ? 'text-align: left;' : (isYours ? 'text-align: right;' : 'text-align: left;');
+
   msgDiv.innerHTML = `
-    <div class="meta-info" style="${isYours ? 'text-align: right;' : 'text-align: left;'}">
+    <div class="sender-row" style="${nameAlignment}">
       <span class="sender-name">${senderName}</span>
     </div>
-    <div class="bubble ${isPing ? 'mentioned' : ''}">
-      ${contentHtml}
+    <div class="message-bubble-wrapper">
+      <div class="avatar-box">
+        <img src="${data.senderPhotoURL || DEFAULT_AVATAR}" class="message-avatar" alt="avatar">
+      </div>
+      <div class="bubble ${isPing ? 'mentioned' : ''}">
+        ${contentHtml}
+      </div>
     </div>
   `;
 
