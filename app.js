@@ -550,6 +550,7 @@ async function processFilesForUpload(files) {
     for (let i = 0; i < totalFiles; i++) {
       const file = files[i];
       const currentNumber = i + 1;
+      const isVideo = file.type.startsWith('video/');
 
       attachIcon.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600;">
@@ -558,20 +559,42 @@ async function processFilesForUpload(files) {
         </div>
       `;
 
-      const formData = new FormData();
-      formData.append("image", file);
+      if (isVideo) {
+        // 🟢 Route Videos to Cloudinary
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", "kno6g17z"); // Put your Cloudinary preset here
 
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-      const data = await response.json();
+        // Put your Cloudinary cloud name in the URL below
+        const response = await fetch(`https://api.cloudinary.com/v1_1/p73ib8qa/video/upload`, { 
+          method: "POST", 
+          body: formData 
+        });
+        const data = await response.json();
 
-      if (data.success) {
-        await sendPayloadToDatabase("", data.data.url, "image");
-        successfulUploads++;
+        if (data.secure_url) {
+          await sendPayloadToDatabase("", data.secure_url, "video");
+          successfulUploads++;
+        } else {
+          console.error("Cloudinary Error:", data.error);
+        }
+
+      } else {
+        // 🟢 Route Images to ImgBB
+        const formData = new FormData();
+        formData.append("image", file);
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+        const data = await response.json();
+
+        if (data.success) {
+          await sendPayloadToDatabase("", data.data.url, "image");
+          successfulUploads++;
+        }
       }
     }
 
     if (successfulUploads < totalFiles) {
-      alert(`⚠️ Only ${successfulUploads} out of ${totalFiles} images uploaded successfully.`);
+      alert(`⚠️ Only ${successfulUploads} out of ${totalFiles} files uploaded successfully.`);
     }
 
   } catch (err) {
@@ -1605,6 +1628,7 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
   const senderName = data.senderDisplayName || data.sender;
   const isPing = !isYours && data.text && (data.text.includes(`@${currentUser}`) || data.text.includes(`@${currentDisplayName}`));
 
+  // 1. Handle Consecutive Messages (Messages grouped together from the same sender)
   if (isConsecutive && !prepend) {
     const lastMessageElement = messagesContainer.lastElementChild;
     if (lastMessageElement && lastMessageElement.classList.contains('message')) {
@@ -1615,6 +1639,9 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
         
         if (data.type === 'image') {
           lineItem.innerHTML = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
+        } else if (data.type === 'video') {
+          // 🟢 Added consecutive video rendering
+          lineItem.innerHTML = `<video src="${data.imageUrl}" controls style="max-width: 350px; border-radius: var(--radius-sm); margin-top: 4px;"></video>`;
         } else {
           const plainText = decryptText(data.text);
           lineItem.innerHTML = `<span>${parseMarkdown(plainText)}</span>`;
@@ -1627,111 +1654,32 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     }
   }
 
-  let timeString = "Sending...";
-  if (data.createdAt) {
-    const dateObj = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
-    timeString = dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }
-
+  // 2. Handle Standalone / New Messages
   const msgDiv = document.createElement('div');
-  msgDiv.classList.add('message');
-  if (isYours) msgDiv.classList.add('yours');
-  if (data.type === 'image') msgDiv.classList.add('image-message'); 
+  msgDiv.classList.add('message', isYours ? 'sent' : 'received');
+  msgDiv.dataset.id = docId;
 
-  let quotedHtml = "";
-  if (data.replyTo) {
-    let replySnippet = "";
-    if (data.replyTo.type === 'image') {
-      replySnippet = '[Image]';
-    } else {
-      replySnippet = decryptText(data.replyTo.text) || data.replyTo.text;
-    }
-    quotedHtml = `<div class="quoted-reply"><i class="fa-solid fa-reply" style="margin-right: 4px;"></i> Replying to <strong>@${data.replyTo.senderName}</strong>: ${replySnippet}</div>`;
+  const decryptedMsg = data.text ? decryptText(data.text) : "";
+  
+  // Choose correct content payload: image vs video vs text markdown
+  let contentHtml = '';
+  if (data.type === 'image') {
+    contentHtml = `<img src="${data.imageUrl}" alt="uploaded image" style="cursor: zoom-in;">`;
+  } else if (data.type === 'video') {
+    // 🟢 Added standard video player payload
+    contentHtml = `<video src="${data.imageUrl}" controls style="max-width: 350px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);"></video>`;
+  } else {
+    contentHtml = `<span class="text-content-node">${parseMarkdown(decryptedMsg)}</span>`;
   }
-
-  let contentHtml = "";
-  if (data.type === 'image') contentHtml = `<img src="${data.imageUrl}" alt="image">`;
-  else contentHtml = `<span>${decryptText(data.text)}</span>`;
-
-  let reactionsDisplayHtml = `<div class="reactions-display">`;
-  const emojiCounts = {}; const userReactedObj = {};
-  Object.entries(data.reactions || {}).forEach(([uid, emoji]) => {
-    emojiCounts[emoji] = (emojiCounts[emoji] || 0) + 1;
-    if (uid === currentUser) userReactedObj[emoji] = true;
-  });
-
-  Object.entries(emojiCounts).forEach(([emoji, count]) => {
-    reactionsDisplayHtml += `<div class="reaction-badge ${userReactedObj[emoji] ? 'active' : ''}" data-emoji="${emoji}">${emoji} <span style="margin-left: 2px;">${count}</span></div>`;
-  });
-  reactionsDisplayHtml += `</div>`;
-
-  const decryptedMsg = decryptText(data.text);
 
   msgDiv.innerHTML = `
-    <div class="message-content-wrapper">
-      <div class="sender-row" style="${isYours ? 'margin-right: 4px;' : 'margin-left: 4px;'}">
-        <span class="sender-name">${senderName}</span><span class="timestamp">${timeString}</span>
-      </div>
-      <div class="message-bubble-wrapper">
-        <div class="avatar-box">
-          <img src="${data.senderPhotoURL || DEFAULT_AVATAR}" class="message-avatar" alt="avatar">
-        </div>
-
-        <div class="bubble ${isPing ? 'mentioned' : ''}">
-          ${quotedHtml}
-          ${data.type === 'image' ? `<img src="${data.imageUrl}" alt="uploaded image">` : `<span class="text-content-node">${parseMarkdown(decryptedMsg)}</span>`}
-        </div>
-
-        <div class="msg-actions">
-          <div class="msg-action-btn reply-btn" title="Reply"><i class="fa-solid fa-reply"></i></div>
-          <div class="msg-action-btn add-reaction-btn" title="React"><i class="fa-regular fa-face-smile"></i></div>
-          ${isYours ? `<button class="msg-action-btn delete-btn" data-id="${docId}" title="Delete" style="border:none;"><i class="fa-solid fa-trash"></i></button>` : ''}
-        </div>
-      </div>
-      <div class="reactions-container" style="${isYours ? 'margin-right: 48px;' : 'margin-left: 48px;'}">${reactionsDisplayHtml}</div>
+    <div class="meta-info" style="${isYours ? 'text-align: right;' : 'text-align: left;'}">
+      <span class="sender-name">${senderName}</span>
+    </div>
+    <div class="bubble ${isPing ? 'mentioned' : ''}">
+      ${contentHtml}
     </div>
   `;
-
-  msgDiv.querySelector('.reply-btn').addEventListener('click', () => {
-    replyingTo = { messageId: docId, senderName: senderName, text: data.text || "", type: data.type };
-    replyToName.innerText = senderName;
-    replyToText.innerText = data.type === 'image' ? '[Image attached]' : (data.type === 'image' ? "" : decryptText(data.text));
-    replyBanner.style.display = 'flex'; messageInput.focus();
-  });
-
-  const addReactionBtn = msgDiv.querySelector('.add-reaction-btn');
-  addReactionBtn.addEventListener('click', (e) => {
-    isInputEmojiTarget = false; 
-    targetReactionMessageId = docId; 
-    targetReactionCollection = collectionName;
-    
-    const rect = addReactionBtn.getBoundingClientRect();
-    emojiPickerWrapper.style.display = 'block';
-    emojiPickerWrapper.style.top = `${(rect.top - 350 < 0) ? rect.bottom + 10 : rect.top - 350}px`;
-    emojiPickerWrapper.style.left = `${Math.max(10, rect.left - 150)}px`;
-  });
-
-  msgDiv.querySelectorAll('.reaction-badge').forEach(badge => {
-    badge.addEventListener('click', async () => {
-      const selectedEmoji = badge.getAttribute('data-emoji');
-      const currentReactions = data.reactions || {};
-      if (currentReactions[currentUser] === selectedEmoji) delete currentReactions[currentUser]; else currentReactions[currentUser] = selectedEmoji;
-      try { await updateDoc(doc(db, collectionName, docId), { reactions: currentReactions }); } catch (err) {}
-    });
-  });
-
-  if (isYours) {
-    msgDiv.querySelector('.delete-btn').addEventListener('click', async () => {
-      try { await deleteDoc(doc(db, collectionName, docId)); } catch (err) {}
-    });
-  }
-
-  if (data.type !== 'image') {
-    const targetBubble = msgDiv.querySelector('.bubble');
-    if (targetBubble) {
-      setTimeout(() => appendLinkPreviews(decryptedMsg, targetBubble), 10);
-    }
-  }
 
   if (prepend) {
     const loadBtn = document.getElementById('load-more-btn');
@@ -1739,6 +1687,10 @@ function displayMessage(data, docId, collectionName, prepend = false, isConsecut
     else messagesContainer.insertBefore(msgDiv, messagesContainer.firstChild);
   } else {
     messagesContainer.appendChild(msgDiv);
+  }
+
+  if (data.type !== 'image' && data.type !== 'video' && decryptedMsg) {
+    setTimeout(() => appendLinkPreviews(decryptedMsg, msgDiv.querySelector('.bubble')), 10);
   }
 
   return msgDiv;
