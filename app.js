@@ -2442,3 +2442,28 @@ document.addEventListener('click', (e) => {
     viewerOverlay.style.display = 'flex';
   }
 });
+
+// BLOCK DEFAULT IMAGE DRAGGING GHOST GLOBALLY
+function disableImageDragging() {
+  const images = document.querySelectorAll('img');
+  images.forEach(img => {
+    img.draggable = false;
+    img.addEventListener('dragstart', e => e.preventDefault(), { passive: true });
+  });
+}
+
+// Run it once on load + after new messages
+document.addEventListener('DOMContentLoaded', disableImageDragging);
+
+// Re-apply after new messages are added
+const originalDisplayMessage = displayMessage;
+displayMessage = function(...args) {
+  const result = originalDisplayMessage.apply(this, args);
+  setTimeout(disableImageDragging, 100); // small delay for DOM update
+  return result;
+};
+
+// Also for the image viewer
+if (viewerImg) {
+  viewerImg.draggable = false;
+}
