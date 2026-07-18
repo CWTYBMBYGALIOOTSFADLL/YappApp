@@ -1567,7 +1567,12 @@ function switchChat(type, target) {
 
     if (lastMessageElement) {
       if ((docsArray[docsArray.length - 1]?.data.sender === currentUser) || isAtBottom || !isFirstPageLoaded) {
-        lastMessageElement.scrollIntoView({ behavior: isFirstPageLoaded ? 'smooth' : 'auto', block: 'end' });
+        
+        // 🟢 Forces the browser to wait until the text/UI is actually drawn before snapping to the bottom
+        setTimeout(() => {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 50);
+
       }
     }
 
