@@ -661,7 +661,6 @@ async function processFilesForUpload(files) {
     attachBtn.style.pointerEvents = "auto";
     fileInput.value = "";
   }
-}
 
 attachBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => {
