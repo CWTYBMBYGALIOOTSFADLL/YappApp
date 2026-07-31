@@ -524,6 +524,14 @@ resetSettingsBtn.addEventListener('click', () => {
 async function processFilesForUpload(files) {
   if (files.length === 0) return;
 
+  // 🔴 SEND TEXT FIRST - BEFORE ANYTHING ELSE
+  const text = messageInput.value.trim();
+  if (text) {
+    await sendPayloadToDatabase(text, "", "text");
+    messageInput.value = "";
+    messageInput.style.height = '50px';
+  }
+
   if (files.length > 10) {
     alert("❌ You can only upload a maximum of 10 files at once!");
     return;
@@ -540,14 +548,6 @@ async function processFilesForUpload(files) {
       alert(`❌ "${file.name}" is too big. 50MB max per file.`);
       return;
     }
-  }
-
-  // Send text message first
-  const text = messageInput.value.trim();
-  if (text) {
-    await sendPayloadToDatabase(text, "", "text");
-    messageInput.value = "";
-    messageInput.style.height = '50px';
   }
 
   const attachIcon = document.getElementById('attach-icon');
@@ -1481,7 +1481,7 @@ function switchChat(type, target) {
       const senderId = data.sender;
       const msgTime = data.createdAt ? (typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate().getTime() : new Date(data.createdAt).getTime()) : Date.now();
       
-      const isConsecutive = (lastSender === senderId) && (lastMsgTime && (msgTime - lastMsgTime < 180000)) && (data.type !== 'system');
+      const isConsecutive = (lastSender === senderId) && (lastMsgTime && (msgTime - lastMsgTime < 180000)) && (data.type === 'text');
 
       displayMessage(msg.data, msg.id, type === 'global' ? "global_messages" : "private_messages", false, isConsecutive);
       
@@ -1552,7 +1552,7 @@ function switchChat(type, target) {
       const senderId = data.sender;
       const msgTime = data.createdAt ? (typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate().getTime() : new Date(data.createdAt).getTime()) : Date.now();
 
-      const isConsecutive = (lastSender === senderId) && (lastMsgTime && (msgTime - lastMsgTime < 180000)) && (data.type !== 'system');
+      const isConsecutive = (lastSender === senderId) && (lastMsgTime && (msgTime - lastMsgTime < 180000)) && (data.type === 'text');
 
       const msgEl = displayMessage(item.data, item.id, collectionName, false, isConsecutive);
       lastMessageElement = msgEl;
