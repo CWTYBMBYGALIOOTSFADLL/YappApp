@@ -596,71 +596,7 @@ async function processFilesForUpload(files) {
   attachmentPreview.classList.remove("show");
 }
 
-  const attachIcon = document.getElementById('attach-icon');
-  attachBtn.style.pointerEvents = "none";
-
-  const totalFiles = files.length;
-  let successfulUploads = 0;
-
-  try {
-    for (let i = 0; i < totalFiles; i++) {
-      const file = files[i];
-      const currentNumber = i + 1;
-      const isVideo = file.type.startsWith('video/');
-
-      attachIcon.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600;">
-          <div class="btn-spinner"></div>
-          <span>(${currentNumber}/${totalFiles})</span>
-        </div>
-      `;
-
-      if (isVideo) {
-        // 🟢 Route Videos to Cloudinary
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", "kno6g17z"); // Put your Cloudinary preset here
-
-        // Put your Cloudinary cloud name in the URL below
-        const response = await fetch(`https://api.cloudinary.com/v1_1/p73ib8qa/video/upload`, { 
-          method: "POST", 
-          body: formData 
-        });
-        const data = await response.json();
-
-        if (data.secure_url) {
-          await sendPayloadToDatabase("", data.secure_url, "video");
-          successfulUploads++;
-        } else {
-          console.error("Cloudinary Error:", data.error);
-        }
-
-      } else {
-        // 🟢 Route Images to ImgBB
-        const formData = new FormData();
-        formData.append("image", file);
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-        const data = await response.json();
-
-        if (data.success) {
-          await sendPayloadToDatabase("", data.data.url, "image");
-          successfulUploads++;
-        }
-      }
-    }
-
-    if (successfulUploads < totalFiles) {
-      alert(`⚠️ Only ${successfulUploads} out of ${totalFiles} files uploaded successfully.`);
-    }
-
-  } catch (err) {
-    console.error("Upload error: ", err);
-    alert("An error occurred during upload.");
-  } finally {
-    attachIcon.innerHTML = `<i class="fa-solid fa-plus"></i>`;
-    attachBtn.style.pointerEvents = "auto";
-    fileInput.value = "";
-  }
+  
 
 attachBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => {
