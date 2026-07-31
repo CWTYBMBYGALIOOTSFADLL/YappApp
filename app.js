@@ -525,25 +525,76 @@ async function processFilesForUpload(files) {
   if (files.length === 0) return;
 
   if (files.length > 10) {
-    alert("❌ You can only upload a maximum of 10 images at once!");
+    alert("❌ You can only upload a maximum of 10 files at once!");
     return;
   }
 
+  // Validate all files first
   for (const file of files) {
-    const isVideo = file.type.startsWith('video/');
-    
-    // 🟢 Checks if it's an image OR a video before allowing it through
-    if (!file.type.startsWith('image/') && !isVideo) {
+    const isVideo = file.type.startsWith("video/");
+
+    if (!file.type.startsWith("image/") && !isVideo) {
       alert(`❌ "${file.name}" is not a valid image or video file.`);
       return;
     }
-    
-    // 🟢 Bumped the file size limit up to 50MB so videos don't get rejected for being too large
+
     if (file.size > 52428800) {
       alert(`❌ "${file.name}" is too big. 50MB max per file.`);
       return;
     }
   }
+
+  // Send the text message first (if there is one)
+  const text = messageInput.value.trim();
+
+  if (text) {
+    await sendPayloadToDatabase(text, "", "text");
+    messageInput.value = "";
+    autoResizeTextarea();
+  }
+
+  // Upload each file as its own message
+  for (const file of files) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      const isVideo = file.type.startsWith("video/");
+      const endpoint = isVideo
+        ? `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`
+        : `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data);
+        alert(`❌ Failed to upload "${file.name}".`);
+        continue;
+      }
+
+      await sendPayloadToDatabase(
+        "",
+        data.secure_url,
+        isVideo ? "video" : "image"
+      );
+
+    } catch (err) {
+      console.error(err);
+      alert(`❌ Failed to upload "${file.name}".`);
+    }
+  }
+
+  // Clear attachment preview
+  selectedFiles = [];
+  attachmentPreview.innerHTML = "";
+  attachmentPreview.classList.remove("show");
+}
 
   const attachIcon = document.getElementById('attach-icon');
   attachBtn.style.pointerEvents = "none";
