@@ -818,55 +818,14 @@ googleLoginBtn.addEventListener('click', async () => {
     return;
   }
 
-  // 1. Shift UI to Loading state immediately
   const loaderText = document.querySelector('#login-loader h2');
   if (loaderText) loaderText.innerText = "Redirecting to Google... ";
   loginScreen.classList.remove('active');
   loginLoader.classList.add('active');
 
-  // 2. CHECK IF RUNNING INSIDE THE DESKTOP APP WEBVIEW
-  // The window.chrome.webview or ipcRenderer proxy can tell us if we are in Electron
-  if (navigator.userAgent.toLowerCase().includes('electron')) {
-    // 🖥️ Tell the Electron App window to trigger the login system externally
-    window.location.href = "yappapp://login-start";
-  } else {
-    // 🌐 Normal Web Browser Mode Fallback
-    try {
-      const result = await signInWithPopup(auth, provider);
-      console.log("✅ Popup login successful:", result.user.uid);
-    } catch (error) {
-      console.error("Google Sign-In Failed:", error);
-      alert("Google Sign-In Failed.");
-      if (typeof resetLoginButton === "function") resetLoginButton();
-      loginLoader.classList.remove('active');
-      loginScreen.classList.add('active');
-    }
-  }
-});
-
-// 3. LISTEN FOR SUCCESSFUL INCOMING TOKENS FROM THE DESKTOP LINK HANDSHAKE
-// This parses tokens injected via standard web URL redirects or storage
-window.addEventListener('DOMContentLoaded', () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const desktopToken = urlParams.get('desktopToken');
-  
-  if (desktopToken) {
-    // Clean up the URL bar
-    window.history.replaceState({}, document.title, window.location.pathname);
-    
-    // Complete the authentication state securely using the shared credential token
-    const credential = GoogleAuthProvider.credential(desktopToken);
-    signInWithCredential(auth, credential)
-      .then((result) => {
-        console.log("✅ Desktop app securely logged in:", result.user.uid);
-      })
-      .catch((error) => {
-        console.error("Desktop auth integration failed:", error);
-        alert("Verification failed: " + error.message);
-        loginLoader.classList.remove('active');
-        loginScreen.classList.add('active');
-      });
-  }
+  // 🚀 FIXED PATH: Navigate to a standard secure sub-url path 
+  // This completely stops the Microsoft Windows Store error from popping up!
+  window.location.href = "https://pages.dev";
 });
 
 
