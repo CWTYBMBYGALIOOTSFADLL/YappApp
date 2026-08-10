@@ -743,22 +743,22 @@ let isProcessingDesktopToken = false;
 
 if (desktopToken) {
   isProcessingDesktopToken = true;
-  // Instantly wipe the messy token parameter from the app view URL bar
+  console.log("🟢 Desktop token received, processing...");
   window.history.replaceState({}, document.title, window.location.pathname);
   
   const credential = GoogleAuthProvider.credential(desktopToken);
   
-  // Authenticate without awaiting inside a listener
   signInWithCredential(auth, credential)
     .then(() => {
-      isProcessingDesktopToken = false; // Success! The listener below will catch it.
+      isProcessingDesktopToken = false;
+      console.log("✓ Desktop token auth successful");
     })
     .catch((err) => {
       isProcessingDesktopToken = false;
       console.error("Desktop auth integration failed:", err);
       document.getElementById('login-loader').classList.remove('active');
       document.getElementById('login-screen').classList.add('active');
-      console.log("Verification failed: " + err.message);
+      alert("Authentication failed. Please try again: " + err.message);
     });
 }
 
@@ -854,10 +854,17 @@ googleLoginBtn.addEventListener('click', async () => {
   loginScreen.classList.remove('active');
   loginLoader.classList.add('active');
 
-  // 🔴 OLD: window.location.href = "https://yappapp-login.pages.dev/";
+  // 🟢 FIXED: Check if running in Electron
+  const isElectron = navigator.userAgent.toLowerCase().includes('electron');
   
-  // 🟢 NEW: Add the trigger word so Electron catches it
-  window.location.href = "https://yappapp-login.pages.dev/desktop-login-trigger";
+  if (isElectron) {
+    // Use the Electron auth bridge
+    console.log("🟢 Electron detected - triggering desktop auth flow");
+    window.location.href = "https://yappapp-login.pages.dev/desktop-login-trigger";
+  } else {
+    // Web browser - direct to login portal
+    window.location.href = "https://yappapp-login.pages.dev/";
+  }
 });
 
 
@@ -2497,4 +2504,23 @@ displayMessage = function(...args) {
 // Also for the image viewer
 if (viewerImg) {
   viewerImg.draggable = false;
+}
+
+// 🟢 Electron Deep Link Handler for alternative auth path
+if (window.electronAPI && typeof window.electronAPI.onDeepLink === 'function') {
+  window.electronAPI.onDeepLink(async (url) => {
+    try {
+      const parsedUrl = new URL(url);
+      const token = parsedUrl.searchParams.get('token');
+      
+      if (token) {
+        console.log("🟢 Deep link token received");
+        const credential = GoogleAuthProvider.credential(null, token);
+        await signInWithCredential(auth, credential);
+        console.log("✓ Deep link authentication successful");
+      }
+    } catch (e) {
+      console.error("Deep link auth failed:", e);
+    }
+  });
 }
