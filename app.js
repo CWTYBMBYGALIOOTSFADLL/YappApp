@@ -746,10 +746,14 @@ onAuthStateChanged(auth, async (user) => {
     try {
       const credential = GoogleAuthProvider.credential(desktopToken);
       await signInWithCredential(auth, credential);
-      return; // Stop execution here; the next loop trigger handles everything else
+      return; 
     } catch (err) {
       console.error("Desktop auth integration failed:", err);
-      alert("Verification failed: " + err.message);
+      // 🟢 ADD THIS so it kicks you back to the login screen if it fails
+      document.getElementById('login-loader').classList.remove('active');
+      document.getElementById('login-screen').classList.add('active');
+      // Using console instead of alert since Electron blocks alerts
+      console.log("Verification failed: " + err.message); 
     }
   }
 
