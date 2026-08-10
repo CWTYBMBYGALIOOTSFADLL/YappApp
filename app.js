@@ -818,51 +818,56 @@ googleLoginBtn.addEventListener('click', async () => {
     return;
   }
 
-  // 1. Update the UI to show the loading screen immediately
+  // 1. Shift UI to Loading state immediately
   const loaderText = document.querySelector('#login-loader h2');
   if (loaderText) loaderText.innerText = "Redirecting to Google... ";
   loginScreen.classList.remove('active');
   loginLoader.classList.add('active');
 
-  // 2. Route the login process based on environment (Desktop vs Web Browser)
-  if (window.electronAPI) {
-    // 🖥️ ELECTRON DESKTOP LOGIN FLOW: Hand off process to the computer's native browser
-    window.electronAPI.openGoogleLogin();
+  // 2. CHECK IF RUNNING INSIDE THE DESKTOP APP WEBVIEW
+  // The window.chrome.webview or ipcRenderer proxy can tell us if we are in Electron
+  if (navigator.userAgent.toLowerCase().includes('electron')) {
+    // 🖥️ Tell the Electron App window to trigger the login system externally
+    window.location.href = "yappapp://login-start";
   } else {
-    // 🌐 WEB BROWSER FALLBACK FLOW: Use standard popup
+    // 🌐 Normal Web Browser Mode Fallback
     try {
       const result = await signInWithPopup(auth, provider);
       console.log("✅ Popup login successful:", result.user.uid);
     } catch (error) {
       console.error("Google Sign-In Failed:", error);
       alert("Google Sign-In Failed.");
-      resetLoginButton();
+      if (typeof resetLoginButton === "function") resetLoginButton();
       loginLoader.classList.remove('active');
       loginScreen.classList.add('active');
     }
   }
 });
 
-// 3. LISTEN FOR SUCCESSFUL DESKTOP AUTHENTICATION (Put this right below your click listener)
-if (window.electronAPI) {
-  window.electronAPI.onAuthSuccess(async (idToken) => {
-    try {
-      // Reconstruct the sign-in credential from the token passed back by the native browser
-      const credential = GoogleAuthProvider.credential(idToken);
-      
-      // Complete sign-in securely inside Electron using your credential token
-      const result = await signInWithCredential(auth, credential);
-      console.log("✅ Desktop login successful:", result.user.uid);
-      
-    } catch (error) {
-      console.error("Desktop Sign-In Verification Failed:", error);
-      alert("Desktop Sign-In Failed during token validation.");
-      if (typeof resetLoginButton === "function") resetLoginButton();
-      loginLoader.classList.remove('active');
-      loginScreen.classList.add('active');
-    }
-  });
-}
+// 3. LISTEN FOR SUCCESSFUL INCOMING TOKENS FROM THE DESKTOP LINK HANDSHAKE
+// This parses tokens injected via standard web URL redirects or storage
+window.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const desktopToken = urlParams.get('desktopToken');
+  
+  if (desktopToken) {
+    // Clean up the URL bar
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // Complete the authentication state securely using the shared credential token
+    const credential = GoogleAuthProvider.credential(desktopToken);
+    signInWithCredential(auth, credential)
+      .then((result) => {
+        console.log("✅ Desktop app securely logged in:", result.user.uid);
+      })
+      .catch((error) => {
+        console.error("Desktop auth integration failed:", error);
+        alert("Verification failed: " + error.message);
+        loginLoader.classList.remove('active');
+        loginScreen.classList.add('active');
+      });
+  }
+});
 
 
 function enterChatApp(photoURL = "") {
