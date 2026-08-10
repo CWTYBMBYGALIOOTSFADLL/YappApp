@@ -840,9 +840,10 @@ googleLoginBtn.addEventListener('click', async () => {
   loginScreen.classList.remove('active');
   loginLoader.classList.add('active');
 
-  // 🚀 FIXED: Changed from 'https://pages.dev' to your real desktop trigger handler
-  // Electron intercepts this specific URL inside main.js and opens the browser
-  window.location.href = "https://yappapp-login.pages.dev/";
+  // 🔴 OLD: window.location.href = "https://yappapp-login.pages.dev/";
+  
+  // 🟢 NEW: Add the trigger word so Electron catches it
+  window.location.href = "https://yappapp-login.pages.dev/desktop-login-trigger";
 });
 
 
