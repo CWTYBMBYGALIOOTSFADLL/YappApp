@@ -735,28 +735,35 @@ async function isUsernameTaken(targetUsername) {
 // ==========================================
 // 🔑 AUTHENTICATION & PERSISTENCE
 // ==========================================
-onAuthStateChanged(auth, async (user) => {
-  // 🚀 FIXED: Catch the URL token immediately when returning from the browser loop
-  const urlParams = new URLSearchParams(window.location.search);
-  const desktopToken = urlParams.get('desktopToken');
+
+// 1. 🚀 Check for the desktop token FIRST, completely outside the listener!
+const urlParams = new URLSearchParams(window.location.search);
+const desktopToken = urlParams.get('desktopToken');
+let isProcessingDesktopToken = false;
+
+if (desktopToken) {
+  isProcessingDesktopToken = true;
+  // Instantly wipe the messy token parameter from the app view URL bar
+  window.history.replaceState({}, document.title, window.location.pathname);
   
-  if (desktopToken) {
-    // Instantly wipe the messy token parameter from the app view URL bar
-    window.history.replaceState({}, document.title, window.location.pathname);
-    try {
-      const credential = GoogleAuthProvider.credential(desktopToken);
-      await signInWithCredential(auth, credential);
-      return; 
-    } catch (err) {
+  const credential = GoogleAuthProvider.credential(desktopToken);
+  
+  // Authenticate without awaiting inside a listener
+  signInWithCredential(auth, credential)
+    .then(() => {
+      isProcessingDesktopToken = false; // Success! The listener below will catch it.
+    })
+    .catch((err) => {
+      isProcessingDesktopToken = false;
       console.error("Desktop auth integration failed:", err);
-      // 🟢 ADD THIS so it kicks you back to the login screen if it fails
       document.getElementById('login-loader').classList.remove('active');
       document.getElementById('login-screen').classList.add('active');
-      // Using console instead of alert since Electron blocks alerts
-      console.log("Verification failed: " + err.message); 
-    }
-  }
+      console.log("Verification failed: " + err.message);
+    });
+}
 
+// 2. 👂 Standard Auth Listener
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user.uid;
     currentEmail = user.email;
@@ -823,10 +830,13 @@ onAuthStateChanged(auth, async (user) => {
       alert("Error loading profile. Please refresh.");
     }
   } else {
-    killAllListeners();
-    loginLoader.classList.remove('active');
-    loginScreen.classList.add('active');
-    chatScreen.classList.remove('active');
+    // 🔴 ONLY kick the user back to the login screen if we AREN'T currently processing a token
+    if (!isProcessingDesktopToken) {
+      killAllListeners();
+      loginLoader.classList.remove('active');
+      loginScreen.classList.add('active');
+      chatScreen.classList.remove('active');
+    }
   }
 });
 
