@@ -842,7 +842,7 @@ googleLoginBtn.addEventListener('click', async () => {
 
   // 🚀 FIXED: Changed from 'https://pages.dev' to your real desktop trigger handler
   // Electron intercepts this specific URL inside main.js and opens the browser
-  window.location.href = "https://pages.dev";
+  window.location.href = "https://yappapp-login.pages.dev/";
 });
 
 
