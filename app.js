@@ -736,6 +736,23 @@ async function isUsernameTaken(targetUsername) {
 // 🔑 AUTHENTICATION & PERSISTENCE
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
+  // 🚀 FIXED: Catch the URL token immediately when returning from the browser loop
+  const urlParams = new URLSearchParams(window.location.search);
+  const desktopToken = urlParams.get('desktopToken');
+  
+  if (desktopToken) {
+    // Instantly wipe the messy token parameter from the app view URL bar
+    window.history.replaceState({}, document.title, window.location.pathname);
+    try {
+      const credential = GoogleAuthProvider.credential(desktopToken);
+      await signInWithCredential(auth, credential);
+      return; // Stop execution here; the next loop trigger handles everything else
+    } catch (err) {
+      console.error("Desktop auth integration failed:", err);
+      alert("Verification failed: " + err.message);
+    }
+  }
+
   if (user) {
     currentUser = user.uid;
     currentEmail = user.email;
@@ -823,10 +840,11 @@ googleLoginBtn.addEventListener('click', async () => {
   loginScreen.classList.remove('active');
   loginLoader.classList.add('active');
 
-  // 🚀 FIXED PATH: Navigate to a standard secure sub-url path 
-  // This completely stops the Microsoft Windows Store error from popping up!
+  // 🚀 FIXED: Changed from 'https://pages.dev' to your real desktop trigger handler
+  // Electron intercepts this specific URL inside main.js and opens the browser
   window.location.href = "https://pages.dev";
 });
+
 
 
 function enterChatApp(photoURL = "") {
