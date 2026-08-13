@@ -901,46 +901,6 @@
       object-fit: cover;
     }
 
-    .shorts-panel {
-      position: fixed;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 315px;
-      height: 560px;
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-      border: 2px solid var(--border);
-      z-index: 5;
-      background: var(--darker-bg);
-      overflow-y: scroll;
-      scroll-snap-type: y mandatory;
-      scrollbar-width: none;
-    }
-
-    .shorts-panel::-webkit-scrollbar {
-      display: none;
-    }
-
-    .short-wrapper {
-      width: 100%;
-      height: 100%;
-      scroll-snap-align: start;
-    }
-
-    .shorts-panel.left {
-      left: 20px;
-    }
-
-    .shorts-panel.right {
-      right: 20px;
-    }
-
-    @media (max-width: 1850px) {
-      .shorts-panel {
-        display: none;
-      }
-    }
-
     #scroll-bottom-btn {
       position: absolute;
       bottom: 105px;
@@ -1383,6 +1343,56 @@
       display: inline-block; /* Required for icons to rotate correctly */
     }
 
+    /* ========== NSFW WARNING OVERLAY ========== */
+    #nsfw-warning-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 999999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      transition: opacity 0.4s ease;
+    }
+
+    #nsfw-warning-text {
+      color: #ffffff;
+      font-family: 'Roboto Mono', monospace;
+      font-weight: 700;
+      font-size: clamp(2.5rem, 8vw, 5.5rem);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      user-select: none;
+      pointer-events: none;
+      
+      /* Diagonal from bottom-left → top-right */
+      transform: rotate(-35deg);
+      transform-origin: center center;
+    }
+
+    /* Spin + shrink animation */
+    #nsfw-warning-text.spin-out {
+      animation: nsfwSpinOut 1.1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes nsfwSpinOut {
+      0% {
+        transform: rotate(-35deg) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: rotate(720deg) scale(0);
+        opacity: 0;
+      }
+    }
+
+    #nsfw-warning-overlay.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     @keyframes spinForever {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -1396,6 +1406,12 @@
 
 </head>
 <body>
+
+  <!-- NSFW WARNING OVERLAY -->
+  <div id="nsfw-warning-overlay">
+    <div id="nsfw-warning-text">NSFW WARNING</div>
+    <p style="position: absolute; bottom: 200px; color: #fff; font-family: 'Roboto Mono', monospace; font-size: 0.9rem; text-align: center; width: 100%;">added /psearch for more categories of NSFW :3</p>
+  </div>
 
   <div id="login-loader" class="screen active" style="justify-content: center; align-items: center; background: var(--dark-bg); position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;">
     <div style="text-align: center;">
@@ -1461,9 +1477,6 @@
       <div class="user-list" id="user-list"></div>
     </aside>
 
-    <div class="shorts-panel left" id="shorts-left"></div>
-    <div class="shorts-panel right" id="shorts-right"></div>
-
     <main class="chat-area">
       <header class="chat-header">
         <div class="header-left-cluster">
@@ -1528,7 +1541,7 @@
         </div>
 
         <input type="file" id="file-input" style="display: none;" accept="image/png, image/jpeg, image/gif, image/webp, video/mp4, video/webm, video/quicktime" multiple>
-        <textarea id="message-input" placeholder="type a message... or use /r34 tag" autocomplete="off" rows="1"></textarea>
+        <textarea id="message-input" placeholder="type a message... use /r34 query OR /psearch query" autocomplete="off" rows="1"></textarea>
         <button type="submit" id="send-btn">send</button>
       </form>
     </main>
@@ -1565,11 +1578,6 @@
         <option value="'Courier Prime', monospace">Courier Prime</option>
         <option value="sans-serif">Standard UI</option>
       </select>
-
-      <label class="custom-checkbox-wrapper">
-        <input type="checkbox" id="hide-shorts-checkbox" class="custom-checkbox">
-        <span style="font-size: 0.9rem; font-weight: 400; color: var(--grayout-bg);">Show side Shorts panels</span>
-      </label>
 
       <button id="save-settings-btn">save changes</button>
       <button id="reset-settings-btn" class="btn-secondary" style="color: var(--golden) !important;">reset to default colors</button>
